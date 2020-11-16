@@ -32,8 +32,23 @@ export interface RestClient {
   defaultNamespace?: string;
 }
 
-// Things that JSON can encode directly
+// Structures that JSON can encode directly
 export type JSONPrimitive = string | number | boolean | null | undefined;
 export type JSONValue = JSONPrimitive | JSONObject | JSONArray;
 export type JSONObject = {[key: string]: JSONValue};
 export type JSONArray = JSONValue[];
+
+// Types seen in a resource watch stream
+export type WatchEvent<T,U> = WatchEventObject<T> | WatchEventError<U> | WatchEventBookmark;
+export type WatchEventObject<T> = {
+  'type': "ADDED" | "MODIFIED" | "DELETED";
+  'object': T;
+};
+export type WatchEventError<U> = {
+  'type': "ERROR";
+  'object': U;
+};
+export type WatchEventBookmark = {
+  'type': "BOOKMARK";
+  'object': { metadata: { resourceVersion: string }};
+};

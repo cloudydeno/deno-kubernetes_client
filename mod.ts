@@ -18,13 +18,16 @@ export { InClusterRestClient, KubectlRawRestClient };
 
 import type { RestClient } from './common.ts';
 
-// Feeble attempt at automatically deciding how to talk to Kubernetes
-// You'll still need to set the correct permissions for where you are running.
-// You can probably be more specific and secure with app-specific Deno.args flags
+/**
+ * Trial-and-error approach for automatically deciding how to talk to Kubernetes.
+ * You'll still need to set the correct permissions for where you are running.
+ * You can probably be more specific and secure with app-specific Deno.args flags.
+ */
 export async function autoDetectClient(): Promise<RestClient> {
 
   // try reading the incluster service account files
   try {
+    // TODO: this should be async
     return new InClusterRestClient();
   } catch (err) {
     console.log('debug: InCluster client failed:', err.name);
@@ -33,5 +36,24 @@ export async function autoDetectClient(): Promise<RestClient> {
   // TODO: try hitting localhost:9001 (for KubectlProxyRestClient)
 
   // fall back to execing kubectl
+  // TODO: try execing first (probably to select default namespace)
   return new KubectlRawRestClient();
+}
+
+
+/** Paginates through an API request, yielding each successive page as a whole */
+export async function* readAllPages<T, U extends {continue?: string | null}>(pageFunc: (token?: string) => Promise<{metadata: U, items: T[]}>) {
+  let pageToken: string | undefined;
+  do {
+    const page = await pageFunc(pageToken ?? undefined);
+    yield page;
+    pageToken = page.metadata.continue ?? undefined;
+  } while (pageToken);
+}
+
+/** Paginates through an API request, yielding every individual item returned */
+export async function* readAllItems<T>(pageFunc: (token?: string) => Promise<{metadata: {continue?: string | null}, items: T[]}>) {
+  for await (const page of readAllPages(pageFunc)) {
+    yield* page.items;
+  }
 }
