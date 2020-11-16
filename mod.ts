@@ -1,6 +1,4 @@
-import type { RestClient } from './common.ts';
-export type { RestClient };
-
+export * from './common.ts';
 export * from './stream-transformers.ts';
 
 /**
@@ -17,6 +15,8 @@ export * from './stream-transformers.ts';
 import { InClusterRestClient } from './transports/via-incluster.ts';
 import { KubectlRawRestClient } from './transports/via-kubectl-raw.ts';
 export { InClusterRestClient, KubectlRawRestClient };
+
+import type { RestClient } from './common.ts';
 
 // Feeble attempt at automatically deciding how to talk to Kubernetes
 // You'll still need to set the correct permissions for where you are running.
