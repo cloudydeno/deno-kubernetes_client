@@ -39,7 +39,7 @@ export class InClusterRestClient implements RestClient {
     if (opts.querystring) {
       path += `?${opts.querystring}`;
     }
-    console.error(opts.method.toUpperCase(), path);
+    console.error(opts.method, path);
 
     const resp = await fetch(this.baseUrl + path, {
       method: opts.method,

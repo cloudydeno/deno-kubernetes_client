@@ -8,7 +8,7 @@ querystring.set('limit', '1');
 
 // Grab a normal JSON resource
 console.log(await client.performRequest({
-  method: 'get',
+  method: 'GET',
   path: `/api/v1/namespaces/default/endpoints`,
   expectJson: true,
   querystring,
@@ -16,7 +16,7 @@ console.log(await client.performRequest({
 
 // Stream multiple JSON objects for a Watch operation
 for await (const line of await client.performRequest({
-  method: 'get',
+  method: 'GET',
   path: `/api/v1/namespaces/default/endpoints`,
   expectStream: true,
   expectJson: true,
@@ -30,7 +30,7 @@ for await (const line of await client.performRequest({
 
 // Stream plaintext log lines from a pod
 for await (const line of await client.performRequest({
-  method: 'get',
+  method: 'GET',
   path: `/api/v1/namespaces/default/pods/lambdabot-0/log`,
   expectStream: true,
   querystring: new URLSearchParams({

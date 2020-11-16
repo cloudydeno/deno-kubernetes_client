@@ -23,15 +23,15 @@ export class KubectlRawRestClient implements RestClient {
 
   async performRequest(opts: RequestOptions): Promise<any> {
     const command = {
-      get: 'get',
-      post: 'create',
-      delete: 'delete',
-      put: 'replace',
-      patch: '',
-      options: '',
-      head: '',
+      GET: 'get',
+      POST: 'create',
+      DELETE: 'delete',
+      PUT: 'replace',
+      PATCH: '',
+      OPTIONS: '',
+      HEAD: '',
     }[opts.method];
-    if (!command) throw new Error(`KubectlRawRestClient cannot perform HTTP ${opts.method.toUpperCase()}`);
+    if (!command) throw new Error(`KubectlRawRestClient cannot perform HTTP ${opts.method}`);
 
     if (opts.abortSignal?.aborted) throw new Error(`Given AbortSignal is already aborted`);
 
@@ -42,7 +42,7 @@ export class KubectlRawRestClient implements RestClient {
     }
 
     const hasReqBody = opts.bodyJson !== undefined || !!opts.bodyRaw || !!opts.bodyStream;
-    console.error(opts.method.toUpperCase(), path, hasReqBody ? '(w/ body)' : '');
+    console.error(opts.method, path, hasReqBody ? '(w/ body)' : '');
 
     const p = Deno.run({
       cmd: ["kubectl", command, ...(hasReqBody ? ['-f', '-'] : []), "--raw", path],

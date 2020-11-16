@@ -1,13 +1,13 @@
 // The API contract that all generated code expects
 
 export type HttpMethods =
-  | "get"
-  | "post"
-  | "delete"
-  | "put"
-  | "patch"
-  | "options"
-  | "head";
+  | "GET"
+  | "POST"
+  | "DELETE"
+  | "PUT"
+  | "PATCH"
+  | "OPTIONS"
+  | "HEAD";
 
 export interface RequestOptions {
   method: HttpMethods;

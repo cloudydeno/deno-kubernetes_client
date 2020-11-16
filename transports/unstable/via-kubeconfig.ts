@@ -29,10 +29,10 @@ import { RestClient, HttpMethods, RequestOptions } from '../../common.ts';
 
 export class KubeConfigRestClient implements RestClient {
   constructor(kubeConfig: KubeConfig, httpClient: Deno.HttpClient, namespace?: string) {
-    this.namespace = namespace;
+    this.defaultNamespace = namespace;
     throw new Error(`TODO: implement :)`);
   }
-  namespace?: string;
+  defaultNamespace?: string;
 
   static async fromKubeConfig(path?: string): Promise<KubeConfigRestClient> {
 
@@ -53,12 +53,12 @@ export class KubeConfigRestClient implements RestClient {
   }
 
 
-  async performRequest(method: HttpMethods, opts: RequestOptions={}): Promise<any> {
+  async performRequest(opts: RequestOptions): Promise<any> {
     let path = opts.path || '/';
     if (opts.querystring) {
       path += `?${opts.querystring}`;
     }
-    console.error(method.toUpperCase(), path);
+    console.error(opts.method, path);
 
     throw new Error(`TODO: implement`);
   }

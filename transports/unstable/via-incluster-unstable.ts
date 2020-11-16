@@ -1,4 +1,5 @@
 import { RestClient, HttpMethods, RequestOptions } from '../../common.ts';
+import { JsonParsingTransformer, ReadLineTransformer } from "../../stream-transformers.ts";
 
 function join(...args: string[]) {
   return args.join('/');
@@ -22,7 +23,7 @@ function join(...args: string[]) {
 export class InClusterUnstableRestClient implements RestClient {
   readonly baseUrl: string;
   readonly secretsPath: string;
-  readonly namespace: string;
+  readonly defaultNamespace: string;
   readonly #httpClient: Deno.HttpClient;
   readonly #token: string;
 
@@ -33,34 +34,43 @@ export class InClusterUnstableRestClient implements RestClient {
     this.baseUrl = baseUrl;
     this.secretsPath = secretsPath;
 
-    this.namespace = Deno.readTextFileSync(join(secretsPath, 'namespace'));
+    this.defaultNamespace = Deno.readTextFileSync(join(secretsPath, 'namespace'));
     this.#httpClient = Deno.createHttpClient({ caFile: join(secretsPath, `ca.crt`) });
     this.#token = Deno.readTextFileSync(join(secretsPath, 'token'));
   }
 
-  async performRequest(method: HttpMethods, opts: RequestOptions={}): Promise<any> {
+  async performRequest(opts: RequestOptions): Promise<any> {
     let path = opts.path || '/';
     if (opts.querystring) {
       path += `?${opts.querystring}`;
     }
-    console.error(method.toUpperCase(), path);
+    console.error(opts.method, path);
 
     const resp = await fetch(this.baseUrl + path, {
-      method: method,
-      body: opts.bodyStream ?? JSON.stringify(opts.body),
+      method: opts.method,
+      body: opts.bodyStream ?? opts.bodyRaw ?? JSON.stringify(opts.bodyJson),
       redirect: 'error',
       signal: opts.abortSignal,
       headers: {
         'Authorization': `Bearer ${this.#token}`,
-        'Accept': opts.accept ?? 'application/octet-stream',
+        'Accept': opts.accept ?? (opts.expectJson ? 'application/json' : 'application/octet-stream'),
       },
       client: this.#httpClient,
     });
 
-    if (opts.streaming) {
-      return resp.body;
-    } else if (opts.accept === 'application/json') {
+    if (opts.expectStream) {
+      if (!resp.body) return new ReadableStream();
+      if (opts.expectJson) {
+        return resp.body
+          .pipeThrough(new ReadLineTransformer('utf-8'))
+          .pipeThrough(new JsonParsingTransformer());
+      } else {
+        return resp.body;
+      }
+
+    } else if (opts.expectJson) {
       return resp.json();
+
     } else {
       return new Uint8Array(await resp.arrayBuffer());
     }
