@@ -1,4 +1,5 @@
 import type { RestClient } from './common.ts';
+export type { RestClient };
 
 /**
  * There are multiple very different types of HTTP client in this repo!
