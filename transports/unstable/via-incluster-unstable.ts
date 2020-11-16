@@ -1,4 +1,4 @@
-import { RestClient, HttpMethods, RequestOptions } from '../common.ts';
+import { RestClient, HttpMethods, RequestOptions } from '../../common.ts';
 
 function join(...args: string[]) {
   return args.join('/');

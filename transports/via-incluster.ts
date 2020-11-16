@@ -1,4 +1,5 @@
 import { RestClient, HttpMethods, RequestOptions } from '../common.ts';
+import { JsonParsingTransformer, ReadLineTransformer } from "../stream-transformers.ts";
 
 function join(...args: string[]) {
   return args.join('/');
@@ -33,8 +34,8 @@ export class InClusterRestClient implements RestClient {
     this.#token = Deno.readTextFileSync(join(secretsPath, 'token'));
   }
 
-  async performRequest(method: HttpMethods, opts: RequestOptions={}): Promise<any> {
-    let path = opts.path || '/';
+  async performRequest(method: HttpMethods, origPath: string, opts: RequestOptions={}): Promise<any> {
+    let path = origPath || '/';
     if (opts.querystring) {
       path += `?${opts.querystring}`;
     }
@@ -42,22 +43,31 @@ export class InClusterRestClient implements RestClient {
 
     const resp = await fetch(this.baseUrl + path, {
       method: method,
-      body: opts.bodyStream ?? JSON.stringify(opts.body),
+      body: opts.bodyStream ?? opts.bodyRaw ?? JSON.stringify(opts.bodyJson),
       redirect: 'error',
       signal: opts.abortSignal,
       headers: {
         'Authorization': `Bearer ${this.#token}`,
-        'Accept': opts.accept ?? 'application/octet-stream',
+        'Accept': opts.accept ?? (opts.expectJson ? 'application/json' : 'application/octet-stream'),
       },
     });
 
-    if (opts.streaming) {
-      return resp.body;
-    } else if (opts.accept === 'application/json') {
+    if (opts.expectStream) {
+      if (!resp.body) return new ReadableStream();
+      if (opts.expectJson) {
+        return resp.body
+          .pipeThrough(new ReadLineTransformer('utf-8'))
+          .pipeThrough(new JsonParsingTransformer());
+      } else {
+        return resp.body;
+      }
+
+    } else if (opts.expectJson) {
       return resp.json();
+
     } else {
       return new Uint8Array(await resp.arrayBuffer());
     }
   }
 }
-export default InClusterRestClient;
+// export default InClusterRestClient;

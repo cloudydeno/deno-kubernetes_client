@@ -1,4 +1,4 @@
-import { RestClient, HttpMethods, RequestOptions } from '../common.ts';
+import { RestClient, HttpMethods, RequestOptions } from '../../common.ts';
 
 /**
  * A RestClient for code which is running within a Kubernetes pod and would like to

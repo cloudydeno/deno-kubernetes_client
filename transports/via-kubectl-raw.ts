@@ -1,4 +1,8 @@
 import { RestClient, HttpMethods, RequestOptions } from '../common.ts';
+import {
+  JsonParsingTransformer, ReadLineTransformer,
+  readableStreamFromReaderCloser,
+} from "../stream-transformers.ts";
 
 /**
  * A RestClient for easily running on a developer's local machine.
@@ -17,7 +21,7 @@ import { RestClient, HttpMethods, RequestOptions } from '../common.ts';
 export class KubectlRawRestClient implements RestClient {
   namespace = undefined; // TODO: read from `kubectl config view --output=json`
 
-  async performRequest(method: HttpMethods, opts: RequestOptions={}): Promise<any> {
+  async performRequest(method: HttpMethods, origPath: string, opts: RequestOptions={}): Promise<any> {
     const command = {
       get: 'get',
       post: 'create',
@@ -31,13 +35,13 @@ export class KubectlRawRestClient implements RestClient {
 
     if (opts.abortSignal?.aborted) throw new Error(`Given AbortSignal is already aborted`);
 
-    let path = opts.path || '/';
+    let path = origPath || '/';
     const query = opts.querystring?.toString() ?? '';
     if (query) {
       path += (path.includes('?') ? '&' : '?') + query;
     }
 
-    const hasReqBody = !!opts.body || !!opts.bodyStream;
+    const hasReqBody = opts.bodyJson !== undefined || !!opts.bodyRaw || !!opts.bodyStream;
     console.error(method.toUpperCase(), path, hasReqBody ? '(w/ body)' : '');
 
     const p = Deno.run({
@@ -71,13 +75,16 @@ export class KubectlRawRestClient implements RestClient {
             stdin.close();
           },
         }));
+      } else if (opts.bodyRaw) {
+        await p.stdin.write(opts.bodyRaw);
+        p.stdin.close();
       } else {
-        await p.stdin.write(new TextEncoder().encode(JSON.stringify(opts.body)));
+        await p.stdin.write(new TextEncoder().encode(JSON.stringify(opts.bodyJson)));
         p.stdin.close();
       }
     }
 
-    if (opts.streaming) {
+    if (opts.expectStream) {
       status.then(status => {
         if (status.code !== 0) {
           console.error(`WARN: Failed to call kubectl streaming: code ${status.code}`);
@@ -87,13 +94,17 @@ export class KubectlRawRestClient implements RestClient {
       // with kubectl --raw, we don't really know if the stream is working or not
       //   until it exits (maybe bad) or prints to stdout (always good)
       // so let's wait to return the stream until the first read returns
-      return new Promise((ok, err) => {
+      const stream = await new Promise<ReadableStream<Uint8Array>>((ok, err) => {
         let isFirstRead = true;
         const startTime = new Date;
 
         // Convert Deno.Reader|Deno.Closer into a ReadableStream (like 'fetch' gives)
         const stream = readableStreamFromReaderCloser({
-          close: p.stdout.close.bind(p.stdout),
+          close: () => {
+            p.stdout.close();
+            // is this the most reliable way??
+            Deno.run({cmd: ['kill', `${p.pid}`]});
+          },
           // Intercept reads to try doing some error handling/mgmt
           read: async buf => {
             // do the read
@@ -124,6 +135,14 @@ export class KubectlRawRestClient implements RestClient {
         }, {bufSize: 8*1024}); // watch events tend to be pretty small I guess?
         // 'stream' gets passed to ok() to be returned
       });
+
+      if (opts.expectJson) {
+        return stream
+          .pipeThrough(new ReadLineTransformer('utf-8'))
+          .pipeThrough(new JsonParsingTransformer());
+      } else {
+        return stream;
+      }
     }
 
     // not streaming, so download the whole response body
@@ -133,7 +152,7 @@ export class KubectlRawRestClient implements RestClient {
       throw new Error(`Failed to call kubectl: code ${code}`);
     }
 
-    if (opts.accept === 'application/json') {
+    if (opts.expectJson) {
       const data = new TextDecoder("utf-8").decode(rawOutput);
       return JSON.parse(data);
     } else {
@@ -142,39 +161,4 @@ export class KubectlRawRestClient implements RestClient {
   }
 
 }
-export default KubectlRawRestClient;
-
-
-
-
-// context: https://github.com/denoland/deno/pull/8378
-
-export function readableStreamFromAsyncIterator<T>(
-  iterator: AsyncIterableIterator<T>,
-  cancel?: ReadableStreamErrorCallback,
-): ReadableStream<T> {
-  return new ReadableStream({
-    cancel,
-    async pull(controller) {
-      const { value, done } = await iterator.next();
-
-      if (done) {
-        controller.close();
-      } else {
-        controller.enqueue(value);
-      }
-    },
-  });
-}
-
-export function readableStreamFromReaderCloser(
-  source: Deno.Reader & Deno.Closer,
-  options?: {
-    bufSize?: number;
-  },
-): ReadableStream<Uint8Array> {
-  return readableStreamFromAsyncIterator(
-    Deno.iter(source, options),
-    () => source.close(),
-  );
-}
+// export default KubectlRawRestClient;

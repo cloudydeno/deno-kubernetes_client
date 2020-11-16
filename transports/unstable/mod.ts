@@ -1,4 +1,4 @@
-import type { RestClient } from '../common.ts';
+import type { RestClient } from '../../common.ts';
 
 /**
  * There are three very different types of HTTP client here!
@@ -12,10 +12,10 @@ import type { RestClient } from '../common.ts';
  */
 
 import { InClusterUnstableRestClient } from './via-incluster-unstable.ts';
-import { InClusterRestClient } from './via-incluster.ts';
+// import { InClusterRestClient } from './via-incluster.ts';
 import { KubeConfigRestClient } from './via-kubeconfig.ts';
-import { KubectlRawRestClient } from './via-kubectl-raw.ts';
-export { InClusterRestClient, InClusterUnstableRestClient, KubeConfigRestClient, KubectlRawRestClient };
+// import { KubectlRawRestClient } from './via-kubectl-raw.ts';
+// export { InClusterRestClient, InClusterUnstableRestClient, KubeConfigRestClient, KubectlRawRestClient };
 
 // Feeble attempt at automatically deciding how to talk to Kubernetes
 // Most useful with permissive flags: --unstable --allow-all
@@ -23,11 +23,11 @@ export { InClusterRestClient, InClusterUnstableRestClient, KubeConfigRestClient,
 export async function autoDetectClient(): Promise<RestClient> {
   // TODO:
   let val: string | undefined;
-  if (val = Deno.env.get('KUBERNETES_SERVER_HOST')) {
-    return new InClusterRestClient();
-  } else if (val = Deno.env.get('KUBECONFIG')) {
+  // if (val = Deno.env.get('KUBERNETES_SERVER_HOST')) {
+    // return new InClusterRestClient();
+  // } else if (val = Deno.env.get('KUBECONFIG')) {
     return KubeConfigRestClient.fromKubeConfig(val);
-  } else {
-    return new KubectlRawRestClient();
-  }
+  // } else {
+  //   return new KubectlRawRestClient();
+  // }
 }
