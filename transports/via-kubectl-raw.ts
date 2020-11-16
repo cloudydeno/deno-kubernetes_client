@@ -21,7 +21,7 @@ import {
 export class KubectlRawRestClient implements RestClient {
   namespace = undefined; // TODO: read from `kubectl config view --output=json`
 
-  async performRequest(method: HttpMethods, origPath: string, opts: RequestOptions={}): Promise<any> {
+  async performRequest(opts: RequestOptions): Promise<any> {
     const command = {
       get: 'get',
       post: 'create',
@@ -30,19 +30,19 @@ export class KubectlRawRestClient implements RestClient {
       patch: '',
       options: '',
       head: '',
-    }[method];
-    if (!command) throw new Error(`KubectlRawRestClient cannot perform HTTP ${method.toUpperCase()}`);
+    }[opts.method];
+    if (!command) throw new Error(`KubectlRawRestClient cannot perform HTTP ${opts.method.toUpperCase()}`);
 
     if (opts.abortSignal?.aborted) throw new Error(`Given AbortSignal is already aborted`);
 
-    let path = origPath || '/';
+    let path = opts.path || '/';
     const query = opts.querystring?.toString() ?? '';
     if (query) {
       path += (path.includes('?') ? '&' : '?') + query;
     }
 
     const hasReqBody = opts.bodyJson !== undefined || !!opts.bodyRaw || !!opts.bodyStream;
-    console.error(method.toUpperCase(), path, hasReqBody ? '(w/ body)' : '');
+    console.error(opts.method.toUpperCase(), path, hasReqBody ? '(w/ body)' : '');
 
     const p = Deno.run({
       cmd: ["kubectl", command, ...(hasReqBody ? ['-f', '-'] : []), "--raw", path],

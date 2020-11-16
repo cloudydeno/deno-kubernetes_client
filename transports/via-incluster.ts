@@ -20,7 +20,7 @@ function join(...args: string[]) {
 export class InClusterRestClient implements RestClient {
   readonly baseUrl: string;
   readonly secretsPath: string;
-  readonly namespace: string;
+  readonly defaultNamespace: string;
   readonly #token: string;
 
   constructor({
@@ -30,19 +30,19 @@ export class InClusterRestClient implements RestClient {
     this.baseUrl = baseUrl;
     this.secretsPath = secretsPath;
 
-    this.namespace = Deno.readTextFileSync(join(secretsPath, 'namespace'));
+    this.defaultNamespace = Deno.readTextFileSync(join(secretsPath, 'namespace'));
     this.#token = Deno.readTextFileSync(join(secretsPath, 'token'));
   }
 
-  async performRequest(method: HttpMethods, origPath: string, opts: RequestOptions={}): Promise<any> {
-    let path = origPath || '/';
+  async performRequest(opts: RequestOptions): Promise<any> {
+    let path = opts.path || '/';
     if (opts.querystring) {
       path += `?${opts.querystring}`;
     }
-    console.error(method.toUpperCase(), path);
+    console.error(opts.method.toUpperCase(), path);
 
     const resp = await fetch(this.baseUrl + path, {
-      method: method,
+      method: opts.method,
       body: opts.bodyStream ?? opts.bodyRaw ?? JSON.stringify(opts.bodyJson),
       redirect: 'error',
       signal: opts.abortSignal,

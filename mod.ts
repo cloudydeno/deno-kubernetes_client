@@ -1,6 +1,8 @@
 import type { RestClient } from './common.ts';
 export type { RestClient };
 
+export * from './stream-transformers.ts';
+
 /**
  * There are multiple very different types of HTTP client in this repo!
  * Each one has its own usecase, upsides, problems, and flags.

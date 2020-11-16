@@ -10,6 +10,8 @@ export type HttpMethods =
   | "head";
 
 export interface RequestOptions {
+  method: HttpMethods;
+  path: string;
   querystring?: URLSearchParams;
   abortSignal?: AbortSignal;
 
@@ -23,10 +25,10 @@ export interface RequestOptions {
 }
 
 export interface RestClient {
-  performRequest(method: HttpMethods, path: string, opts: RequestOptions & {expectStream: true; expectJson: true}): Promise<ReadableStream<JSONValue>>;
-  performRequest(method: HttpMethods, path: string, opts: RequestOptions & {expectStream: true}): Promise<ReadableStream<Uint8Array>>;
-  performRequest(method: HttpMethods, path: string, opts: RequestOptions & {expectJson: true}): Promise<JSONValue>;
-  performRequest(method: HttpMethods, path: string, opts?: RequestOptions): Promise<Uint8Array>;
+  performRequest(opts: RequestOptions & {expectStream: true; expectJson: true}): Promise<ReadableStream<JSONValue>>;
+  performRequest(opts: RequestOptions & {expectStream: true}): Promise<ReadableStream<Uint8Array>>;
+  performRequest(opts: RequestOptions & {expectJson: true}): Promise<JSONValue>;
+  performRequest(opts: RequestOptions): Promise<Uint8Array>;
   defaultNamespace?: string;
 }
 
