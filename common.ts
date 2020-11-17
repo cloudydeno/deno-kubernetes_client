@@ -15,6 +15,7 @@ export interface RequestOptions {
   querystring?: URLSearchParams;
   abortSignal?: AbortSignal;
 
+  contentType?: string;
   bodyRaw?: Uint8Array;
   bodyJson?: JSONValue;
   bodyStream?: ReadableStream<Uint8Array>;

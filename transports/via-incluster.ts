@@ -41,15 +41,22 @@ export class InClusterRestClient implements RestClient {
     }
     console.error(opts.method, path);
 
+    const headers: Record<string, string> = {
+      'Authorization': `Bearer ${this.#token}`,
+    };
+
+    const accept = opts.accept ?? (opts.expectJson ? 'application/json' : undefined);
+    if (accept) headers['Accept'] = accept;
+
+    const contentType = opts.contentType ?? (opts.bodyJson ? 'application/json' : undefined);
+    if (contentType) headers['Content-Type'] = contentType;
+
     const resp = await fetch(this.baseUrl + path, {
       method: opts.method,
       body: opts.bodyStream ?? opts.bodyRaw ?? JSON.stringify(opts.bodyJson),
       redirect: 'error',
       signal: opts.abortSignal,
-      headers: {
-        'Authorization': `Bearer ${this.#token}`,
-        'Accept': opts.accept ?? (opts.expectJson ? 'application/json' : 'application/octet-stream'),
-      },
+      headers,
     });
 
     if (opts.expectStream) {
