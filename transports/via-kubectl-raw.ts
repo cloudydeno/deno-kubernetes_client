@@ -1,4 +1,4 @@
-import { RestClient, HttpMethods, RequestOptions } from '../common.ts';
+import { RestClient, HttpMethods, RequestOptions, JSONValue } from '../common.ts';
 import {
   JsonParsingTransformer, ReadLineTransformer,
   readableStreamFromReaderCloser,
@@ -8,6 +8,8 @@ import {
  * A RestClient for easily running on a developer's local machine.
  * Your existing kubectl is called to do all the actual authentication and network stuff.
  * This is pretty reliable but mot all types of requests can be performed this way.
+ *
+ * TODO: support using a specific KubeConfig context
  *
  * Deno flags to use this client:
  *   --allow-run
@@ -21,31 +23,17 @@ import {
 export class KubectlRawRestClient implements RestClient {
   namespace = undefined; // TODO: read from `kubectl config view --output=json`
 
-  async performRequest(opts: RequestOptions): Promise<any> {
-    const command = {
-      GET: 'get',
-      POST: 'create',
-      DELETE: 'delete',
-      PUT: 'replace',
-      PATCH: '',
-      OPTIONS: '',
-      HEAD: '',
-    }[opts.method];
-    if (!command) throw new Error(`KubectlRawRestClient cannot perform HTTP ${opts.method}`);
-
-    if (opts.abortSignal?.aborted) throw new Error(`Given AbortSignal is already aborted`);
-
-    let path = opts.path || '/';
-    const query = opts.querystring?.toString() ?? '';
-    if (query) {
-      path += (path.includes('?') ? '&' : '?') + query;
-    }
+  async runKubectl(args: string[], opts: {
+    abortSignal?: AbortSignal;
+    bodyRaw?: Uint8Array;
+    bodyJson?: JSONValue;
+    bodyStream?: ReadableStream<Uint8Array>;
+  }) {
 
     const hasReqBody = opts.bodyJson !== undefined || !!opts.bodyRaw || !!opts.bodyStream;
-    console.error(opts.method, path, hasReqBody ? '(w/ body)' : '');
 
     const p = Deno.run({
-      cmd: ["kubectl", command, ...(hasReqBody ? ['-f', '-'] : []), "--raw", path],
+      cmd: ["kubectl", ...args],
       stdin: hasReqBody ? 'piped' : undefined,
       stdout: "piped",
       stderr: "inherit",
@@ -79,10 +67,59 @@ export class KubectlRawRestClient implements RestClient {
         await p.stdin.write(opts.bodyRaw);
         p.stdin.close();
       } else {
+        console.log(JSON.stringify(opts.bodyJson))
         await p.stdin.write(new TextEncoder().encode(JSON.stringify(opts.bodyJson)));
         p.stdin.close();
       }
     }
+
+    return [p, status] as const;
+  }
+
+  async performRequest(opts: RequestOptions): Promise<any> {
+    const command = {
+      GET: 'get',
+      POST: 'create',
+      DELETE: 'delete',
+      PUT: 'replace',
+      PATCH: 'patch',
+      OPTIONS: '',
+      HEAD: '',
+    }[opts.method];
+    if (!command) throw new Error(`KubectlRawRestClient cannot perform HTTP ${opts.method}`);
+
+    if (opts.abortSignal?.aborted) throw new Error(`Given AbortSignal is already aborted`);
+
+    let path = opts.path || '/';
+    const query = opts.querystring?.toString() ?? '';
+    if (query) {
+      path += (path.includes('?') ? '&' : '?') + query;
+    }
+
+    const hasReqBody = opts.bodyJson !== undefined || !!opts.bodyRaw || !!opts.bodyStream;
+    console.error(opts.method, path, hasReqBody ? '(w/ body)' : '');
+
+    let rawArgs = [command, ...(hasReqBody ? ['-f', '-'] : []), "--raw", path];
+
+    if (command === 'patch') {
+      if (path.includes('?')) throw new Error(
+        `TODO: KubectlRawRestClient doesn't know how to PATCH with a querystring yet`);
+
+      const patchMode = opts.contentType?.split('/')[1]?.split('-')[0] ?? 'none';
+      if (patchMode === 'apply') throw new Error(
+        `TODO: Server-Side Apply is not yet implemented (and also not enabled in vanilla Kubernetes yet)`);
+      if (!['json', 'merge', 'strategic'].includes(patchMode)) throw new Error(
+        `Unrecognized Content-Type ${opts.contentType} for PATCH, unable to translate to 'kubectl'`);
+
+      const pathParts = path.slice(1).split('/');
+      const apiGroup = (pathParts.shift() == 'api') ? '' : pathParts.shift();
+      const [apiVersion, kindPlural, name] = pathParts;
+
+      rawArgs = [`patch`, `--type`, patchMode, `--patch-file`, `/dev/stdin`, `-o`, `json`, `--`, `${kindPlural}.${apiGroup}`, name];
+      console.log('kubectl', rawArgs.join(' '));
+    }
+
+    const [p, status] = await this.runKubectl(rawArgs, opts);
 
     if (opts.expectStream) {
       status.then(status => {
@@ -93,48 +130,8 @@ export class KubectlRawRestClient implements RestClient {
 
       // with kubectl --raw, we don't really know if the stream is working or not
       //   until it exits (maybe bad) or prints to stdout (always good)
-      // so let's wait to return the stream until the first read returns
-      const stream = await new Promise<ReadableStream<Uint8Array>>((ok, err) => {
-        let isFirstRead = true;
-        const startTime = new Date;
-
-        // Convert Deno.Reader|Deno.Closer into a ReadableStream (like 'fetch' gives)
-        const stream = readableStreamFromReaderCloser({
-          close: () => {
-            p.stdout.close();
-            // is this the most reliable way??
-            Deno.run({cmd: ['kill', `${p.pid}`]});
-          },
-          // Intercept reads to try doing some error handling/mgmt
-          read: async buf => {
-            // do the read
-            const num = await p.stdout.read(buf);
-
-            // if we EOFd, check the process status
-            if (num === null) {
-              const stat = await status;
-              // if it took multiple minutes to fail, probably just failed unrelated
-              const delayMillis = new Date().valueOf() - startTime.valueOf();
-              // TODO: some way of passing an error through the ReadableStream?
-              if (stat.code !== 0 && delayMillis < 3*60*1000) {
-                // might not be too late to fail the call more properly
-                err(new Error(`kubectl stream ended with code ${stat.code}`));
-                return num;
-              }
-              // if exit code was 0, let the EOF happen normally, below
-            }
-
-            // if we got our first data, resolve the original promise
-            if (isFirstRead) {
-              isFirstRead = false;
-              ok(stream);
-            }
-
-            return num;
-          },
-        }, {bufSize: 8*1024}); // watch events tend to be pretty small I guess?
-        // 'stream' gets passed to ok() to be returned
-      });
+      // so we await the stream creation in order to throw obvious errors properly
+      const stream = await readableStreamFromProcess(p, status);
 
       if (opts.expectJson) {
         return stream
@@ -162,3 +159,50 @@ export class KubectlRawRestClient implements RestClient {
 
 }
 // export default KubectlRawRestClient;
+
+function readableStreamFromProcess(p: Deno.Process<{cmd: any, stdout: 'piped'}>, status: Promise<Deno.ProcessStatus>) {
+  // with kubectl --raw, we don't really know if the stream is working or not
+  //   until it exits (maybe bad) or prints to stdout (always good)
+  // so let's wait to return the stream until the first read returns
+  return new Promise<ReadableStream<Uint8Array>>((ok, err) => {
+    let isFirstRead = true;
+    const startTime = new Date;
+
+    // Convert Deno.Reader|Deno.Closer into a ReadableStream (like 'fetch' gives)
+    const stream = readableStreamFromReaderCloser({
+      close: () => {
+        p.stdout.close();
+        // is this the most reliable way??
+        Deno.run({cmd: ['kill', `${p.pid}`]});
+      },
+      // Intercept reads to try doing some error handling/mgmt
+      read: async buf => {
+        // do the read
+        const num = await p.stdout.read(buf);
+
+        // if we EOFd, check the process status
+        if (num === null) {
+          const stat = await status;
+          // if it took multiple minutes to fail, probably just failed unrelated
+          const delayMillis = new Date().valueOf() - startTime.valueOf();
+          // TODO: some way of passing an error through the ReadableStream?
+          if (stat.code !== 0 && delayMillis < 3*60*1000) {
+            // might not be too late to fail the call more properly
+            err(new Error(`kubectl stream ended with code ${stat.code}`));
+            return num;
+          }
+          // if exit code was 0, let the EOF happen normally, below
+        }
+
+        // if we got our first data, resolve the original promise
+        if (isFirstRead) {
+          isFirstRead = false;
+          ok(stream);
+        }
+
+        return num;
+      },
+    }, {bufSize: 8*1024}); // watch events tend to be pretty small I guess?
+    // 'stream' gets passed to ok() to be returned
+  });
+}
