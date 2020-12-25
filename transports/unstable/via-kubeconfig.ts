@@ -1,4 +1,7 @@
 import { RestClient, HttpMethods, RequestOptions } from '../../common.ts';
+import {
+  JsonParsingTransformer, ReadLineTransformer,
+} from "../../stream-transformers.ts";
 
 /**
  * A RestClient for code which is running within a Kubernetes pod and would like to
@@ -28,9 +31,12 @@ import { RestClient, HttpMethods, RequestOptions } from '../../common.ts';
  */
 
 export class KubeConfigRestClient implements RestClient {
-  constructor(kubeConfig: KubeConfig, httpClient: Deno.HttpClient, namespace?: string) {
+  constructor(
+    private kubeConfig: KubeConfig,
+    private httpClient: Deno.HttpClient,
+    namespace?: string
+  ) {
     this.defaultNamespace = namespace;
-    throw new Error(`TODO: implement :)`);
   }
   defaultNamespace?: string;
 
@@ -59,7 +65,43 @@ export class KubeConfigRestClient implements RestClient {
     }
     console.error(opts.method, path);
 
-    throw new Error(`TODO: implement`);
+    const headers: Record<string, string> = {};
+
+    const {context, cluster, user} = this.kubeConfig.fetchCurrentContext();
+    if (user.token) {
+      headers['Authorization'] = `Bearer ${user.token}`;
+    } else throw new Error(`TODO: this kubeconfig's auth doesn't seem supported`);
+
+    const accept = opts.accept ?? (opts.expectJson ? 'application/json' : undefined);
+    if (accept) headers['Accept'] = accept;
+
+    const contentType = opts.contentType ?? (opts.bodyJson ? 'application/json' : undefined);
+    if (contentType) headers['Content-Type'] = contentType;
+
+    const resp = await fetch(new URL(path, cluster.server), {
+      method: opts.method,
+      body: opts.bodyStream ?? opts.bodyRaw ?? JSON.stringify(opts.bodyJson),
+      redirect: 'error',
+      signal: opts.abortSignal,
+      headers,
+    });
+
+    if (opts.expectStream) {
+      if (!resp.body) return new ReadableStream();
+      if (opts.expectJson) {
+        return resp.body
+          .pipeThrough(new ReadLineTransformer('utf-8'))
+          .pipeThrough(new JsonParsingTransformer());
+      } else {
+        return resp.body;
+      }
+
+    } else if (opts.expectJson) {
+      return resp.json();
+
+    } else {
+      return new Uint8Array(await resp.arrayBuffer());
+    }
   }
 }
 
