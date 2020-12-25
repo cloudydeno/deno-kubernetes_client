@@ -35,8 +35,10 @@ export class InClusterUnstableRestClient implements RestClient {
     this.secretsPath = secretsPath;
 
     this.defaultNamespace = Deno.readTextFileSync(join(secretsPath, 'namespace'));
-    this.#httpClient = Deno.createHttpClient({ caFile: join(secretsPath, `ca.crt`) });
+    const caData = Deno.readTextFileSync(join(secretsPath, `ca.crt`));
     this.#token = Deno.readTextFileSync(join(secretsPath, 'token'));
+
+    this.#httpClient = Deno.createHttpClient({ caData });
   }
 
   async performRequest(opts: RequestOptions): Promise<any> {

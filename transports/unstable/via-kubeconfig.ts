@@ -39,14 +39,13 @@ export class KubeConfigRestClient implements RestClient {
     const config = await readKubeConfig(path);
     const {context, cluster, user} = config.fetchCurrentContext();
 
-    let caPath = cluster["certificate-authority"];
-    if (!caPath && cluster["certificate-authority-data"]) {
-      const caPath = `/tmp/ca-${context.cluster}.pem`;
-      await Deno.writeTextFile(caPath, atob(cluster["certificate-authority-data"]));
+    let caData = cluster["certificate-authority-data"];
+    if (!caData && cluster["certificate-authority"]) {
+      caData = await Deno.readTextFile(cluster["certificate-authority"]);
     }
 
     const httpClient = Deno.createHttpClient({
-      caFile: caPath,
+      caData,
     });
 
     return new KubeConfigRestClient(config, httpClient, context.namespace);
