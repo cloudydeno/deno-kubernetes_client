@@ -102,6 +102,7 @@ export class KubectlRawRestClient implements RestClient {
     let rawArgs = [command, ...(hasReqBody ? ['-f', '-'] : []), "--raw", path];
 
     if (command === 'patch') {
+      // `kubectl patch` doesn't have --raw so we convert the HTTP request into a normalish `kubectl patch` command
       if (path.includes('?')) throw new Error(
         `TODO: KubectlRawRestClient doesn't know how to PATCH with a querystring yet`);
 
@@ -109,7 +110,7 @@ export class KubectlRawRestClient implements RestClient {
       if (patchMode === 'apply') throw new Error(
         `TODO: Server-Side Apply is not yet implemented (and also not enabled in vanilla Kubernetes yet)`);
       if (!['json', 'merge', 'strategic'].includes(patchMode)) throw new Error(
-        `Unrecognized Content-Type ${opts.contentType} for PATCH, unable to translate to 'kubectl'`);
+        `Unrecognized Content-Type ${opts.contentType} for PATCH, unable to translate to 'kubectl patch'`);
 
       const pathParts = path.slice(1).split('/');
       const apiGroup = (pathParts.shift() == 'api') ? '' : pathParts.shift();
@@ -117,6 +118,12 @@ export class KubectlRawRestClient implements RestClient {
 
       rawArgs = [`patch`, `--type`, patchMode, `--patch-file`, `/dev/stdin`, `-o`, `json`, `--`, `${kindPlural}.${apiGroup}`, name];
       console.log('kubectl', rawArgs.join(' '));
+
+    } else {
+      if (opts.accept) throw new Error(
+        `KubectlRawRestClient cannot include arbitrary Accept header '${opts.accept}'`);
+      if (opts.contentType) throw new Error(
+        `KubectlRawRestClient cannot include arbitrary Content-Type header '${opts.contentType}'`);
     }
 
     const [p, status] = await this.runKubectl(rawArgs, opts);
