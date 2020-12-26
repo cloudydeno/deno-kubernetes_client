@@ -1,5 +1,6 @@
 export * from './common.ts';
 export * from './stream-transformers.ts';
+export { Reflector } from './reflector.ts';
 
 /**
  * There are multiple very different types of HTTP client in this repo!

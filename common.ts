@@ -39,6 +39,12 @@ export type JSONValue = JSONPrimitive | JSONObject | JSONArray;
 export type JSONObject = {[key: string]: JSONValue};
 export type JSONArray = JSONValue[];
 
+// Constraint for when these fields will surely be present
+export type ApiKind = {
+  apiVersion: string;
+  kind: string;
+}
+
 // Types seen in a resource watch stream
 export type WatchEvent<T,U> = WatchEventObject<T> | WatchEventError<U> | WatchEventBookmark;
 export type WatchEventObject<T> = {
