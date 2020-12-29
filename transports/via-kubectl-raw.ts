@@ -4,6 +4,8 @@ import {
   readableStreamFromReaderCloser,
 } from "../stream-transformers.ts";
 
+const isVerbose = Deno.args.includes('--verbose');
+
 /**
  * A RestClient for easily running on a developer's local machine.
  * Your existing kubectl is called to do all the actual authentication and network stuff.
@@ -31,7 +33,7 @@ export class KubectlRawRestClient implements RestClient {
   }) {
 
     const hasReqBody = opts.bodyJson !== undefined || !!opts.bodyRaw || !!opts.bodyStream;
-    console.error('$ kubectl', args.join(' '), hasReqBody ? '< input' : '');
+    isVerbose && console.error('$ kubectl', args.join(' '), hasReqBody ? '< input' : '');
 
     const p = Deno.run({
       cmd: ["kubectl", ...args],
@@ -43,12 +45,12 @@ export class KubectlRawRestClient implements RestClient {
 
     if (opts.abortSignal) {
       const abortHandler = () => {
-        console.error('processing kubectl abort');
+        isVerbose && console.error('processing kubectl abort');
         p.stdout.close();
       };
       opts.abortSignal.addEventListener("abort", abortHandler);
       status.finally(() => {
-        console.error('cleaning up abort handler');
+        isVerbose && console.error('cleaning up abort handler');
         opts.abortSignal?.removeEventListener("abort", abortHandler);
       });
     }
@@ -68,7 +70,7 @@ export class KubectlRawRestClient implements RestClient {
         await p.stdin.write(opts.bodyRaw);
         p.stdin.close();
       } else {
-        console.error(JSON.stringify(opts.bodyJson))
+        isVerbose && console.error(JSON.stringify(opts.bodyJson))
         await p.stdin.write(new TextEncoder().encode(JSON.stringify(opts.bodyJson)));
         p.stdin.close();
       }
@@ -98,7 +100,7 @@ export class KubectlRawRestClient implements RestClient {
     }
 
     const hasReqBody = opts.bodyJson !== undefined || !!opts.bodyRaw || !!opts.bodyStream;
-    // console.error(opts.method, path, hasReqBody ? '(w/ body)' : '');
+    isVerbose && console.error(opts.method, path, hasReqBody ? '(w/ body)' : '');
 
     let rawArgs = [command, ...(hasReqBody ? ['-f', '-'] : []), "--raw", path];
 
