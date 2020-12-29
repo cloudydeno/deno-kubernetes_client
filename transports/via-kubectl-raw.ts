@@ -31,6 +31,7 @@ export class KubectlRawRestClient implements RestClient {
   }) {
 
     const hasReqBody = opts.bodyJson !== undefined || !!opts.bodyRaw || !!opts.bodyStream;
+    console.error('$ kubectl', args.join(' '), hasReqBody ? '< input' : '');
 
     const p = Deno.run({
       cmd: ["kubectl", ...args],
@@ -67,7 +68,7 @@ export class KubectlRawRestClient implements RestClient {
         await p.stdin.write(opts.bodyRaw);
         p.stdin.close();
       } else {
-        console.log(JSON.stringify(opts.bodyJson))
+        console.error(JSON.stringify(opts.bodyJson))
         await p.stdin.write(new TextEncoder().encode(JSON.stringify(opts.bodyJson)));
         p.stdin.close();
       }
@@ -97,34 +98,18 @@ export class KubectlRawRestClient implements RestClient {
     }
 
     const hasReqBody = opts.bodyJson !== undefined || !!opts.bodyRaw || !!opts.bodyStream;
-    console.error(opts.method, path, hasReqBody ? '(w/ body)' : '');
+    // console.error(opts.method, path, hasReqBody ? '(w/ body)' : '');
 
     let rawArgs = [command, ...(hasReqBody ? ['-f', '-'] : []), "--raw", path];
 
     if (command === 'patch') {
-      // `kubectl patch` doesn't have --raw so we convert the HTTP request into a normalish `kubectl patch` command
-      if (path.includes('?')) throw new Error(
-        `TODO: KubectlRawRestClient doesn't know how to PATCH with a querystring yet`);
-
-      const patchMode = opts.contentType?.split('/')[1]?.split('-')[0] ?? 'none';
-      if (patchMode === 'apply') throw new Error(
-        `TODO: Server-Side Apply is not yet implemented (and also not enabled in vanilla Kubernetes yet)`);
-      if (!['json', 'merge', 'strategic'].includes(patchMode)) throw new Error(
-        `Unrecognized Content-Type ${opts.contentType} for PATCH, unable to translate to 'kubectl patch'`);
-
-      const pathParts = path.slice(1).split('/');
-      const apiGroup = (pathParts.shift() == 'api') ? '' : pathParts.shift();
-      const [apiVersion, kindPlural, name] = pathParts;
-
-      rawArgs = [`patch`, `--type`, patchMode, `--patch-file`, `/dev/stdin`, `-o`, `json`, `--`, `${kindPlural}.${apiGroup}`, name];
-      console.log('kubectl', rawArgs.join(' '));
-
+      rawArgs = buildPatchCommand(path, opts.contentType);
     } else {
-      if (opts.accept) throw new Error(
-        `KubectlRawRestClient cannot include arbitrary Accept header '${opts.accept}'`);
       if (opts.contentType) throw new Error(
         `KubectlRawRestClient cannot include arbitrary Content-Type header '${opts.contentType}'`);
     }
+    if (opts.accept) throw new Error(
+      `KubectlRawRestClient cannot include arbitrary Accept header '${opts.accept}'`);
 
     const [p, status] = await this.runKubectl(rawArgs, opts);
 
@@ -166,6 +151,65 @@ export class KubectlRawRestClient implements RestClient {
 
 }
 // export default KubectlRawRestClient;
+
+// `kubectl patch` doesn't have --raw so we convert the HTTP request into a non-raw `kubectl patch` command
+// The resulting command is quite verbose but works for all main resources
+// Unfortunately, /status subresources CANNOT be patched this way: https://github.com/kubernetes/kubectl/issues/564
+// TODO: We could support /scale by building a `kubectl scale` command instead
+function buildPatchCommand(path: string, contentType?: string) {
+  if (path.includes('?')) throw new Error(
+    `TODO: KubectlRawRestClient doesn't know how to PATCH with a querystring yet. ${JSON.stringify(path)}`);
+
+  const patchMode = contentType?.split('/')[1]?.split('-')[0] ?? 'none';
+  if (patchMode === 'apply') throw new Error(
+    `TODO: Server-Side Apply is not yet implemented (and also not enabled in vanilla Kubernetes yet)`);
+  if (!['json', 'merge', 'strategic'].includes(patchMode)) throw new Error(
+    `Unrecognized Content-Type ${contentType} for PATCH, unable to translate to 'kubectl patch'`);
+
+  const pathParts = path.slice(1).split('/');
+
+  const apiGroup = (pathParts.shift() == 'api') ? '' : pathParts.shift();
+  const apiVersion = pathParts.shift();
+
+  let namespace = null;
+  if (pathParts[0] === 'namespaces' && pathParts.length > 3) {
+    pathParts.shift();
+    namespace = pathParts.shift();
+  }
+
+  const kindPlural = pathParts.shift();
+  const name = pathParts.shift();
+  if (!kindPlural || !name) throw new Error(
+    `BUG: API path fell short: ${JSON.stringify(path)}`);
+
+  const resourceArgs = [
+    `-o`, `json`, // we want to get the new data as a response
+    ...(namespace ? ['-n', namespace] : []),
+    `--`, // disable non-positional arguments after here, for safety
+    `${kindPlural}.${apiVersion}.${apiGroup}`, // very very specific
+    name,
+  ];
+
+  // Anything left over? Hopefully a subresource.
+  const leftover = pathParts.length ? `/${pathParts.join('/')}` : '';
+  if (leftover === '/status') throw new Error(
+    `BUG: KubectlRawRestClient cannot patch the '/status' subresource `+
+    `due to <https://github.com/kubernetes/kubectl/issues/564>. `+
+    `Either patch using a different transport, or use a replace operation instead.`);
+  else if (leftover === '/scale') {
+    throw new Error(
+      `TODO: KubectlRawRestClient cannot patch the '/scale' subresource at this time. Please file an issue.`);
+    // return [`scale`,
+    //   `--replicas=${TODO}`, // this is in the request body :(
+    //   ...resourceArgs];
+  } else if (leftover) throw new Error(
+    `BUG: KubectlRawRestClient found extra text ${JSON.stringify(leftover)} in patch path.`);
+
+  return [`patch`,
+    `--type`, patchMode,
+    `--patch-file`, `/dev/stdin`, // we'll pipe the patch, instead of giving it inline
+    ...resourceArgs];
+}
 
 function readableStreamFromProcess(p: Deno.Process<{cmd: any, stdout: 'piped'}>, status: Promise<Deno.ProcessStatus>) {
   // with kubectl --raw, we don't really know if the stream is working or not
