@@ -11,6 +11,7 @@ Therefor each included client has different notes and required flags in order to
 
 This library is intended as a building block.
 If you are unsure how to issue a specific request from your own library/code,
+or if your usage results in any `TODO: ...` error message from my code,
 please feel free to file a Github Issue.
 
 ## Usage
@@ -37,21 +38,32 @@ installation to make all the network calls.
 This only requires the `--allow-run` Deno flag.
 For deploying code into a cluster, more flags are necesary; see "Stable clients".
 
+The `kubectl` client logs the issued commands if `--verbose` is passed to the Deno program.
+
 Check out `common.ts` to see the type/API contract.
 
 ## Changelog
 
-* `v0.1.0` on `2020-11-16`: Initial publication, with KubectlRaw and InCluster clients.
-    Also includes ReadableStream transformers, useful for consuming watch streams.
+* `v0.1.3` on `2020-12-29`: Improved `KubectlRaw` Patch support.
+    Now supports namespaced resources ;) and knows that subresources can't be patched.
+
+* `v0.1.2` on `2020-12-27`: Initial `KubectlRaw` Patch support.
+    Also exports the `Reflector` implementation and plumbs the unstable `Kubeconfig` client more.
+
+* `v0.1.1` on `2020-12-24`: Add a generic Reflector implementation.
+    This is useful for consuming a pairing of list & watch APIs.
+
+* `v0.1.0` on `2020-11-16`: Initial publication, with `KubectlRaw` and `InCluster` clients.
+    Also includes `ReadableStream` transformers, useful for consuming watch streams.
 
 # Stable clients
 
 * `KubectlRawRestClient` invokes `kubectl --raw` for every HTTP call.
-    Excellent for development, though some features are not possible to implement.
+    Excellent for development, though a couple APIs are not possible to implement.
     Flags: `--allow-run`
 * `InClusterRestClient` uses a pod's ServiceAccount to automatically authenticate.
     This is what you'll use when you deploy your script to a cluster.
-    Flags: `--allow-read --allow-net --cert=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt` (check )
+    Flags: `--allow-read --allow-net --cert=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt` (unless relocated)
 
 Incomplete clients:
 
@@ -79,3 +91,9 @@ You'll likely also want Typescript interfaces around actually working with Kuber
 
 API typings are being tracked in a sibling project:
 [kubernetes_apis](https://github.com/danopia/deno-kubernetes_apis)
+published to
+[/x/kubernetes_apis](https://deno.land/x/kubernetes_apis)
+
+## TODO
+* [ ] Support for `kubectl proxy`
+* [ ] Add filtering to Reflector implementation (e.g. by annotation)
