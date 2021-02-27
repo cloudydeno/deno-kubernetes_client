@@ -5,8 +5,8 @@
  * be relative to the file they were originally found in
  */
 
-import { join } from "https://deno.land/std@0.70.0/path/mod.ts";
-import * as YAML from "https://deno.land/std@0.70.0/encoding/yaml.ts";
+import { join } from "https://deno.land/std@0.88.0/path/mod.ts";
+import * as YAML from "https://deno.land/std@0.88.0/encoding/yaml.ts";
 
 export class KubeConfig {
   constructor(
