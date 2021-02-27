@@ -48,8 +48,8 @@ Check out `lib/contract.ts` to see the type/API contract.
 
 ## Changelog
 
-* `v0.2.0` in `the future`: Rewrote KubeConfig handling and removed stable/unstable split.
-    There's only two transport implementations now: KubectlRaw nad KubeConfig
+* `v0.2.0` on `2020-02-27`: Rewrote KubeConfig handling and removed stable/unstable split.
+    There's only two transport implementations now: KubectlRaw and KubeConfig
 
 * `v0.1.3` on `2020-12-29`: Improved `KubectlRaw` Patch support.
     Now supports namespaced resources ;) and knows that subresources can't be patched.
