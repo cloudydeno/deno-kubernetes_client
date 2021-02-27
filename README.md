@@ -34,10 +34,13 @@ console.log(podList);
 // see demo.ts for more request examples (streaming responses, etc)
 ```
 
-To get started on local development, the easiest method is to call out to your `kubectl`
-installation to make all the network calls.
+To get started on local development, `autoDetectClient` will most likely
+decide to call out to your `kubectl`
+installation to make each network call.
 This only requires the `--allow-run` Deno flag.
-For deploying code into a cluster, more flags are necesary; see "Stable clients".
+
+To use other clients, more flags are necesary.
+See "Client Implementations" below for more information on other clients.
 
 The `kubectl` client logs the issued commands if `--verbose` is passed to the Deno program.
 
@@ -60,12 +63,25 @@ Check out `lib/contract.ts` to see the type/API contract.
 * `v0.1.0` on `2020-11-16`: Initial publication, with `KubectlRaw` and `InCluster` clients.
     Also includes `ReadableStream` transformers, useful for consuming watch streams.
 
-# Client implementations
+# Client Implementations
+
+An error message is shown when no client is usable, something like this:
+
+```
+Error: Failed to load any possible Kubernetes clients:
+  - InCluster PermissionDenied: read access to "/var/run/secrets/kubernetes.io/serviceaccount/namespace", run again with the --allow-read flag
+  - KubeConfig PermissionDenied: access to environment variables, run again with the --allow-env flag
+  - KubectlProxy PermissionDenied: network access to "localhost:8001", run again with the --allow-net flag
+  - KubectlRaw PermissionDenied: access to run a subprocess, run again with the --allow-run flag
+```
+
+Each client has different pros and cons:
 
 * `KubectlRawRestClient` invokes `kubectl --raw` for every HTTP call.
     Excellent for development, though a couple APIs are not possible to implement.
 
     Flags: `--allow-run`
+
 * `KubeConfigRestClient` uses Deno's `fetch()` to issue HTTP requests.
     There's a few different functions to configure it:
 
@@ -78,9 +94,13 @@ Check out `lib/contract.ts` to see the type/API contract.
 
         This allows a full range-of-motion for development purposes regardless of the Kubernetes configuration.
 
+        Flags: `--allow-net=localhost:8001` given that `kubectl proxy` is already running at that URL.
+
     * `readKubeConfig(path?)` (or `forKubeConfig(config)`) tries using the given config (or `$HOME/.kube/config` if none is given) as closely as possible.
 
-        This requires a lot of flags depending on the config file, and in some cases simply cannot work. For example `https://<ip-address>` server values are not currently supported by Deno.
+        This requires a lot of flags depending on the config file, and in some cases simply cannot work. For example `https://<ip-address>` server values are not currently supported by Deno. Trial & error works here :)
+
+        Entry-level flags: `--allow-env --allow-net --allow-read=$HOME/.kube`
 
 ## Related: API Typings
 
@@ -93,5 +113,5 @@ published to
 [/x/kubernetes_apis](https://deno.land/x/kubernetes_apis)
 
 ## TODO
-* [ ] Support for `kubectl proxy`
+* [x] Support for `kubectl proxy`
 * [ ] Add filtering to Reflector implementation (e.g. by annotation)
