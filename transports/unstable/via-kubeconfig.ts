@@ -1,4 +1,5 @@
 import { RestClient, HttpMethods, RequestOptions } from '../../common.ts';
+import { KubeConfig } from '../../lib/kubeconfig.ts';
 import {
   JsonParsingTransformer, ReadLineTransformer,
 } from "../../stream-transformers.ts";
@@ -25,9 +26,8 @@ import {
  * Note that Deno (as of 1.4.1) can't fetch HTTPS IP addresses (denoland/deno#7660)
  * so KUBERNETES_SERVER_HOST can't be used at this time, and would need --allow-env anyway.
  *
- * Note that Deno (as of 1.4.1) can't provide a CA Certificate inline. (TODO: file an issuer)
- * This means that we need to write the CA out to a .pem file and then have Deno read it back in.
- * This requires more permissions; for the momen
+ * Note that Deno (as of 1.7.5) can't supply client certificates (TODO: file an issue)
+ * so certificate based auth is currently not possible.
  */
 
 export class KubeConfigRestClient implements RestClient {
@@ -42,19 +42,19 @@ export class KubeConfigRestClient implements RestClient {
 
   static async fromKubeConfig(path?: string): Promise<KubeConfigRestClient> {
 
-    const config = await readKubeConfig(path);
-    const {context, cluster, user} = config.fetchCurrentContext();
+    const config = await (path ? KubeConfig.readFromPath(path) : KubeConfig.getDefaultConfig());
+    const ctx = config.fetchContext();
 
-    let caData = cluster["certificate-authority-data"];
-    if (!caData && cluster["certificate-authority"]) {
-      caData = await Deno.readTextFile(cluster["certificate-authority"]);
+    let caData = ctx.cluster["certificate-authority-data"];
+    if (!caData && ctx.cluster["certificate-authority"]) {
+      caData = await Deno.readTextFile(ctx.cluster["certificate-authority"]);
     }
 
     const httpClient = Deno.createHttpClient({
       caData,
     });
 
-    return new KubeConfigRestClient(config, httpClient, context.namespace);
+    return new KubeConfigRestClient(config, httpClient, ctx.defaultNamespace || 'default');
   }
 
 
@@ -67,10 +67,12 @@ export class KubeConfigRestClient implements RestClient {
 
     const headers: Record<string, string> = {};
 
-    const {context, cluster, user} = this.kubeConfig.fetchCurrentContext();
-    if (user.token) {
-      headers['Authorization'] = `Bearer ${user.token}`;
-    } else throw new Error(`TODO: this kubeconfig's auth doesn't seem supported`);
+    const ctx = this.kubeConfig.fetchContext();
+    if (!ctx.cluster.server) throw new Error(`No server URL found in KubeConfig`);
+    const authHeader = await ctx.getAuthHeader();
+    if (authHeader) {
+      headers['Authorization'] = authHeader;
+    }
 
     const accept = opts.accept ?? (opts.expectJson ? 'application/json' : undefined);
     if (accept) headers['Accept'] = accept;
@@ -78,11 +80,12 @@ export class KubeConfigRestClient implements RestClient {
     const contentType = opts.contentType ?? (opts.bodyJson ? 'application/json' : undefined);
     if (contentType) headers['Content-Type'] = contentType;
 
-    const resp = await fetch(new URL(path, cluster.server), {
+    const resp = await fetch(new URL(path, ctx.cluster.server), {
       method: opts.method,
       body: opts.bodyStream ?? opts.bodyRaw ?? JSON.stringify(opts.bodyJson),
       redirect: 'error',
       signal: opts.abortSignal,
+      client: this.httpClient,
       headers,
     });
 
@@ -104,100 +107,3 @@ export class KubeConfigRestClient implements RestClient {
     }
   }
 }
-
-
-////////////////////////////////////////
-// .kube/config parsing
-
-
-import { join } from "https://deno.land/std@0.70.0/path/mod.ts";
-import * as YAML from "https://deno.land/std@0.70.0/encoding/yaml.ts";
-
-
-export async function readKubeConfig(path?: string): Promise<KubeConfig> {
-  if (!path) {
-    path = join(Deno.env.get("HOME") ?? '/root', ".kube", "config");
-  }
-
-  const decoder = new TextDecoder("utf-8");
-  const file = await Deno.open(path, {read: true});
-  const string = decoder.decode(await Deno.readAll(file));
-  file.close();
-
-  const data = YAML.parse(string);
-  if (isKubeConfig(data)) return new KubeConfig(data);
-  throw new Error(`KubeConfig didn't smell right`);
-}
-
-export interface KubeConfig {
-  apiVersion: 'v1';
-  kind: 'Config';
-
-  'contexts': {name: string, context: ContextConfig}[];
-  'clusters': {name: string, cluster: ClusterConfig}[];
-  'users': {name: string, user: UserConfig}[];
-
-  'current-context': string;
-  'preferences': any; // TODO: what uses this?
-}
-
-export class KubeConfig implements KubeConfig {
-  constructor(kubeconfig: KubeConfig) {
-    Object.assign(this, kubeconfig);
-  }
-
-  fetchCurrentContext() {
-    const current = this.contexts.find(x => x.name === this["current-context"]);
-    if (!current) throw new Error(`No context is selected in kubeconfig`);
-
-    const cluster = this.clusters.find(x => x.name === current.context.cluster);
-    if (!cluster) throw new Error(`No cluster is selected in kubeconfig`);
-
-    const user = this.users.find(x => x.name === current.context.user);
-    if (!user) throw new Error(`No user is selected in kubeconfig`);
-
-    return { context: current.context, cluster: cluster.cluster, user: user.user };
-  }
-}
-function isKubeConfig(data: any): data is KubeConfig {
-  return data && data.apiVersion === 'v1' && data.kind === 'Config';
-}
-
-export interface ContextConfig {
-  'cluster': string;
-  'user': string;
-  'namespace'?: string;
-}
-
-export interface ClusterConfig {
-  'server': string; // URL
-
-  'certificate-authority'?: string; // path
-  'certificate-authority-data'?: string; // base64
-}
-
-export interface UserConfig {
-  // inline auth
-  'token'?: string;
-  'username'?: string;
-  'password'?: string;
-
-  // mTLS auth (--allow-read)
-  'client-key'?: string; // path
-  'client-key-data'?: string; // base64
-  'client-certificate'?: string; // path
-  'client-certificate-data'?: string; // base64
-
-  // external auth (--allow-run)
-  'auth-provider'?: {name: string, config: UserAuthProvider};
-}
-
-export interface UserAuthProvider {
-  'access-token': string;
-  'cmd-args': string;
-  'cmd-path': string;
-  'expiry': string;
-  'expiry-key': string;
-  'token-key': string;
-}
-export default KubeConfigRestClient;
