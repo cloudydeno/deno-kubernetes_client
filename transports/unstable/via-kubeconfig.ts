@@ -1,6 +1,6 @@
 import { RestClient, HttpMethods, RequestOptions } from '../../lib/contract.ts';
 import { JsonParsingTransformer, ReadLineTransformer } from "../../lib/stream-transformers.ts";
-import { KubeConfig } from '../../lib/kubeconfig.ts';
+import { KubeConfig, KubeConfigContext } from '../../lib/kubeconfig.ts';
 
 /**
  * A RestClient for code which is running within a Kubernetes pod and would like to
@@ -30,17 +30,25 @@ import { KubeConfig } from '../../lib/kubeconfig.ts';
 
 export class KubeConfigRestClient implements RestClient {
   constructor(
-    private kubeConfig: KubeConfig,
+    private ctx: KubeConfigContext,
     private httpClient: Deno.HttpClient,
-    namespace?: string
   ) {
-    this.defaultNamespace = namespace;
+    this.defaultNamespace = ctx.defaultNamespace || 'default';
   }
   defaultNamespace?: string;
 
-  static async fromKubeConfig(path?: string): Promise<KubeConfigRestClient> {
+  static async readInCluster() {
+    return KubeConfigRestClient.fromKubeConfig(
+      await KubeConfig.getInClusterConfig());
+  }
 
-    const config = await (path ? KubeConfig.readFromPath(path) : KubeConfig.getDefaultConfig());
+  static async readKubeConfig(path?: string): Promise<KubeConfigRestClient> {
+    return KubeConfigRestClient.fromKubeConfig(path
+      ? await KubeConfig.readFromPath(path)
+      : await KubeConfig.getDefaultConfig());
+  }
+
+  static async fromKubeConfig(config: KubeConfig): Promise<KubeConfigRestClient> {
     const ctx = config.fetchContext();
 
     let caData = ctx.cluster["certificate-authority-data"];
@@ -52,7 +60,7 @@ export class KubeConfigRestClient implements RestClient {
       caData,
     });
 
-    return new KubeConfigRestClient(config, httpClient, ctx.defaultNamespace || 'default');
+    return new KubeConfigRestClient(ctx, httpClient);
   }
 
 
@@ -65,9 +73,8 @@ export class KubeConfigRestClient implements RestClient {
 
     const headers: Record<string, string> = {};
 
-    const ctx = this.kubeConfig.fetchContext();
-    if (!ctx.cluster.server) throw new Error(`No server URL found in KubeConfig`);
-    const authHeader = await ctx.getAuthHeader();
+    if (!this.ctx.cluster.server) throw new Error(`No server URL found in KubeConfig`);
+    const authHeader = await this.ctx.getAuthHeader();
     if (authHeader) {
       headers['Authorization'] = authHeader;
     }
@@ -78,7 +85,7 @@ export class KubeConfigRestClient implements RestClient {
     const contentType = opts.contentType ?? (opts.bodyJson ? 'application/json' : undefined);
     if (contentType) headers['Content-Type'] = contentType;
 
-    const resp = await fetch(new URL(path, ctx.cluster.server), {
+    const resp = await fetch(new URL(path, this.ctx.cluster.server), {
       method: opts.method,
       body: opts.bodyStream ?? opts.bodyRaw ?? JSON.stringify(opts.bodyJson),
       redirect: 'error',

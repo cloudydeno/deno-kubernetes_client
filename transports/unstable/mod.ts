@@ -26,7 +26,7 @@ export async function autoDetectClient(): Promise<RestClient> {
   // if (val = Deno.env.get('KUBERNETES_SERVER_HOST')) {
     // return new InClusterRestClient();
   // } else if (val = Deno.env.get('KUBECONFIG')) {
-    return KubeConfigRestClient.fromKubeConfig(val);
+    return KubeConfigRestClient.readKubeConfig(val);
   // } else {
   //   return new KubectlRawRestClient();
   // }
