@@ -1,4 +1,4 @@
-import { JSONObject, WatchEvent } from "./common.ts";
+import { JSONObject, WatchEvent } from "./contract.ts";
 
 class TextLineReader {
   decoder: TextDecoder;

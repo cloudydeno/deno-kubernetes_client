@@ -1,6 +1,7 @@
-export * from './common.ts';
-export * from './stream-transformers.ts';
-export { Reflector } from './reflector.ts';
+export * from './lib/contract.ts';
+export { KubeConfig, KubeConfigContext } from './lib/kubeconfig.ts';
+export { Reflector } from './lib/reflector.ts';
+export * from './lib/stream-transformers.ts';
 
 /**
  * There are multiple very different types of HTTP client in this repo!
@@ -17,7 +18,7 @@ import { InClusterRestClient } from './transports/via-incluster.ts';
 import { KubectlRawRestClient } from './transports/via-kubectl-raw.ts';
 export { InClusterRestClient, KubectlRawRestClient };
 
-import type { RestClient } from './common.ts';
+import type { RestClient } from './lib/contract.ts';
 
 /**
  * Trial-and-error approach for automatically deciding how to talk to Kubernetes.

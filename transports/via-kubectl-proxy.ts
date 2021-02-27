@@ -1,5 +1,3 @@
-import { RestClient, HttpMethods, RequestOptions } from '../common.ts';
-
 /**
  * A RestClient for access Kubernetes APIs through a `kubectl proxy` server.
  * kubectl should already be running to do all the actual authentication and network stuff.

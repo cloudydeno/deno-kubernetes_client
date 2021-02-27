@@ -1,8 +1,6 @@
-import { RestClient, HttpMethods, RequestOptions } from '../../common.ts';
+import { RestClient, HttpMethods, RequestOptions } from '../../lib/contract.ts';
+import { JsonParsingTransformer, ReadLineTransformer } from "../../lib/stream-transformers.ts";
 import { KubeConfig } from '../../lib/kubeconfig.ts';
-import {
-  JsonParsingTransformer, ReadLineTransformer,
-} from "../../stream-transformers.ts";
 
 /**
  * A RestClient for code which is running within a Kubernetes pod and would like to

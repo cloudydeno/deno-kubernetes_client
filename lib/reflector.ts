@@ -1,4 +1,4 @@
-import { WatchEvent, WatchEventError, WatchEventBookmark } from "./common.ts";
+import { WatchEvent, WatchEventError, WatchEventBookmark } from "./contract.ts";
 
 /**
  * Implementation of a Kubernetes List/Watch client which furnishes a view of the watched data.

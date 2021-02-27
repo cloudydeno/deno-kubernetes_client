@@ -1,8 +1,8 @@
-import { RestClient, HttpMethods, RequestOptions, JSONValue } from '../common.ts';
+import { RestClient, HttpMethods, RequestOptions, JSONValue } from '../lib/contract.ts';
 import {
   JsonParsingTransformer, ReadLineTransformer,
   readableStreamFromReaderCloser,
-} from "../stream-transformers.ts";
+} from "../lib/stream-transformers.ts";
 
 const isVerbose = Deno.args.includes('--verbose');
 

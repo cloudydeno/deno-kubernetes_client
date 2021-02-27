@@ -1,4 +1,4 @@
-import type { RestClient } from '../../common.ts';
+import type { RestClient } from '../../lib/contract.ts';
 
 /**
  * There are three very different types of HTTP client here!

@@ -1,5 +1,4 @@
-import {autoDetectClient} from './mod.ts';
-import { ReadLineTransformer } from "./stream-transformers.ts";
+import { autoDetectClient, ReadLineTransformer } from './mod.ts';
 const client = await autoDetectClient();
 
 // Build a querystring object

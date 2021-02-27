@@ -1,5 +1,5 @@
-import { RestClient, HttpMethods, RequestOptions } from '../common.ts';
-import { JsonParsingTransformer, ReadLineTransformer } from "../stream-transformers.ts";
+import { RestClient, HttpMethods, RequestOptions } from '../lib/contract.ts';
+import { JsonParsingTransformer, ReadLineTransformer } from "../lib/stream-transformers.ts";
 
 function join(...args: string[]) {
   return args.join('/');
