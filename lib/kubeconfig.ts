@@ -73,6 +73,22 @@ export class KubeConfig {
     });
   }
 
+  static getSimpleUrlConfig({
+    baseUrl = 'http://localhost:8080',
+  }={}) {
+    return new KubeConfig({
+      'apiVersion': "v1",
+      'kind': "Config",
+      'current-context': "simple-url",
+      contexts: [{ name: "simple-url", context: {
+        'cluster': "url",
+      }}],
+      clusters: [{ name: "url", cluster: {
+        'server': baseUrl,
+      }}],
+    });
+  }
+
   getContext(name?: string) {
     return name && this.data.contexts?.find(x => x.name === name) || null;
   }

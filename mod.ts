@@ -14,9 +14,9 @@ export * from './lib/stream-transformers.ts';
  * you will want to run within a cluster pretty soon.
  */
 
-import { InClusterRestClient } from './transports/via-incluster.ts';
 import { KubectlRawRestClient } from './transports/via-kubectl-raw.ts';
-export { InClusterRestClient, KubectlRawRestClient };
+import { KubeConfigRestClient } from './transports/via-kubeconfig.ts';
+export { KubectlRawRestClient, KubeConfigRestClient };
 
 import type { RestClient } from './lib/contract.ts';
 
@@ -29,13 +29,32 @@ export async function autoDetectClient(): Promise<RestClient> {
 
   // try reading the incluster service account files
   try {
-    // TODO: this should be async
-    return new InClusterRestClient();
+    return await KubeConfigRestClient.forInCluster();
   } catch (err) {
-    console.log('debug: InCluster client failed:', err.name);
+    console.error('debug: InCluster client failed:', err.name);
   }
 
-  // TODO: try hitting localhost:9001 (for KubectlProxyRestClient)
+  try {
+    const client = await KubeConfigRestClient.readKubeConfig();
+    await client.performRequest({
+      method: 'GET',
+      path: '/version',
+    });
+    return client;
+  } catch (err) {
+    console.error('debug: KubeConfig client failed:', err.name);
+  }
+
+  try {
+    const client = await KubeConfigRestClient.forKubectlProxy();
+    await client.performRequest({
+      method: 'GET',
+      path: '/version',
+    });
+    return client;
+  } catch (err) {
+    console.error('debug: "kubectl proxy" client failed:', err.name);
+  }
 
   // fall back to execing kubectl
   // TODO: try execing first (probably to select default namespace)

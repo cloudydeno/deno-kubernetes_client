@@ -20,6 +20,8 @@ const isVerbose = Deno.args.includes('--verbose');
  * Con: In particular, these features aren't available:
  *   - Setting or receiving HTTP headers
  *   - HTTP methods such as PATCH and HEAD
+ *   - Fully-detailed error payloads
+ *   - Differentiating successful & quiet stream vs stalled stream setup
  */
 
 export class KubectlRawRestClient implements RestClient {

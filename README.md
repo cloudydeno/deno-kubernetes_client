@@ -7,7 +7,8 @@ to the Kubernetes API from deno scripts.
 
 Kubernetes is a complex architechure which likes using sophisticated networking concepts,
 while Deno is a relatively young runtime, so there's some mismatch in capabilities.
-Therefor each included client has different notes and required flags in order to operate.
+Therefor one client implementation cannot work in every case,
+and different Deno flags enable supporting different setups.
 
 This library is intended as a building block.
 If you are unsure how to issue a specific request from your own library/code,
@@ -40,9 +41,12 @@ For deploying code into a cluster, more flags are necesary; see "Stable clients"
 
 The `kubectl` client logs the issued commands if `--verbose` is passed to the Deno program.
 
-Check out `common.ts` to see the type/API contract.
+Check out `lib/contract.ts` to see the type/API contract.
 
 ## Changelog
+
+* `v0.2.0` in `the future`: Rewrote KubeConfig handling and removed stable/unstable split.
+    There's only two transport implementations now: KubectlRaw nad KubeConfig
 
 * `v0.1.3` on `2020-12-29`: Improved `KubectlRaw` Patch support.
     Now supports namespaced resources ;) and knows that subresources can't be patched.
@@ -56,33 +60,27 @@ Check out `common.ts` to see the type/API contract.
 * `v0.1.0` on `2020-11-16`: Initial publication, with `KubectlRaw` and `InCluster` clients.
     Also includes `ReadableStream` transformers, useful for consuming watch streams.
 
-# Stable clients
+# Client implementations
 
 * `KubectlRawRestClient` invokes `kubectl --raw` for every HTTP call.
     Excellent for development, though a couple APIs are not possible to implement.
+
     Flags: `--allow-run`
-* `InClusterRestClient` uses a pod's ServiceAccount to automatically authenticate.
-    This is what you'll use when you deploy your script to a cluster.
-    Flags: `--allow-read --allow-net --cert=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt` (unless relocated)
+* `KubeConfigRestClient` uses Deno's `fetch()` to issue HTTP requests.
+    There's a few different functions to configure it:
 
-Incomplete clients:
+    * `forInCluster()` uses a pod's ServiceAccount to automatically authenticate.
+        This is what is used when you deploy your script to a cluster.
 
-* `KubectlProxyRestClient` expects a `kubectl proxy` command to be running.
-    This allows a full range-of-motion for development purposes.
+        Flags: `--allow-read --allow-net` plus either `--unstable` or `--cert=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt`
 
-## Unstable Clients
+    * `forKubectlProxy()` expects a `kubectl proxy` command to be running and talks directly to it without auth.
 
-There are a few client strategies that currently require `--unstable`;
-they all live in an `unstable/` folder for now and will hopefully someday
-be able to get promoted out and fixed up at the same time.
+        This allows a full range-of-motion for development purposes regardless of the Kubernetes configuration.
 
-None of these are complete at this time.
+    * `readKubeConfig(path?)` (or `forKubeConfig(config)`) tries using the given config (or `$HOME/.kube/config` if none is given) as closely as possible.
 
-* `InClusterUnstableRestClient`: like the stable version, but uses Deno APIs to set the CA trust explicitly.
-* `KubeConfigRestClient`: interprets the user's `~/.kube/config` and tries to talk to the cluster directly.
-    This requires a lot of flags and unstable APIs at this time.
-* `PluginRestClient`: Just a thought at this point.
-    Could use a proper Rust Kubernetes client and compile it into a Deno plugin.
+        This requires a lot of flags depending on the config file, and in some cases simply cannot work. For example `https://<ip-address>` server values are not currently supported by Deno.
 
 ## Related: API Typings
 

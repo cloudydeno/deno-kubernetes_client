@@ -1,21 +1,27 @@
-import { RestClient, HttpMethods, RequestOptions } from '../../lib/contract.ts';
-import { JsonParsingTransformer, ReadLineTransformer } from "../../lib/stream-transformers.ts";
-import { KubeConfig, KubeConfigContext } from '../../lib/kubeconfig.ts';
+import { RestClient, HttpMethods, RequestOptions } from '../lib/contract.ts';
+import { JsonParsingTransformer, ReadLineTransformer } from "../lib/stream-transformers.ts";
+import { KubeConfig, KubeConfigContext } from '../lib/kubeconfig.ts';
 
 /**
- * A RestClient for code which is running within a Kubernetes pod and would like to
- * access the local cluster's control plane using its Service Account (likely the default SA).
+ * A RestClient which uses a KubeConfig to talk directly to a Kubernetes endpoint.
+ * Used by code which is running within a Kubernetes pod and would like to
+ * access the local cluster's control plane using its Service Account.
+ *
+ * Also useful for some development workflows,
+ * such as interacting with `kubectl proxy` or even directly in certain cases.
+ * Unfortunately Deno's fetch() is still a bit gimped for server use
+ * so this client works best for simple cases.
  *
  * Deno flags to use this client:
- * Basic: --unstable --allow-read --allow-write --allow-net --allow-env
- * Strict: --unstable --allow-read=$HOME/.kube --allow-write=$HOME/.kube --allow-net
- * Lazy: --unstable --allow-all
+ * Basic KubeConfig: --allow-read=$HOME/.kube --allow-net --allow-env
+ * CA cert fix: --unstable --allow-read=$HOME/.kube --allow-net --allow-env
+ * In-cluster: --allow-read=/var/run/secrets/kubernetes.io --allow-net --cert=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
  *
  * Unstable features:
- * - using a caFile when fetching
- * - inspecting permissions and prompting for further permissions
+ * - using the cluster's CA when fetching (otherwise pass --cert to Deno)
+ * - inspecting permissions and prompting for further permissions (TODO)
  *
- * --allow-env is purely to read the $HOME variable to find your kubeconfig
+ * --allow-env is purely to read the $HOME and $KUBECONFIG variables to find your kubeconfig
  *
  * Note that advanced kubeconfigs will need different permissions.
  * This client will prompt you if your config requires extra permissions.
@@ -31,24 +37,31 @@ import { KubeConfig, KubeConfigContext } from '../../lib/kubeconfig.ts';
 export class KubeConfigRestClient implements RestClient {
   constructor(
     private ctx: KubeConfigContext,
-    private httpClient: Deno.HttpClient,
+    private httpClient: unknown,
   ) {
     this.defaultNamespace = ctx.defaultNamespace || 'default';
   }
   defaultNamespace?: string;
 
-  static async readInCluster() {
-    return KubeConfigRestClient.fromKubeConfig(
+  static async forInCluster() {
+    return KubeConfigRestClient.forKubeConfig(
       await KubeConfig.getInClusterConfig());
   }
 
+  static async forKubectlProxy() {
+    return KubeConfigRestClient.forKubeConfig(
+      KubeConfig.getSimpleUrlConfig({
+        baseUrl: 'http://localhost:8001',
+      }));
+  }
+
   static async readKubeConfig(path?: string): Promise<KubeConfigRestClient> {
-    return KubeConfigRestClient.fromKubeConfig(path
+    return KubeConfigRestClient.forKubeConfig(path
       ? await KubeConfig.readFromPath(path)
       : await KubeConfig.getDefaultConfig());
   }
 
-  static async fromKubeConfig(config: KubeConfig): Promise<KubeConfigRestClient> {
+  static async forKubeConfig(config: KubeConfig): Promise<KubeConfigRestClient> {
     const ctx = config.fetchContext();
 
     let caData = ctx.cluster["certificate-authority-data"];
@@ -56,9 +69,17 @@ export class KubeConfigRestClient implements RestClient {
       caData = await Deno.readTextFile(ctx.cluster["certificate-authority"]);
     }
 
-    const httpClient = Deno.createHttpClient({
-      caData,
-    });
+    // do a little dance to allow running with or without --unstable
+    let httpClient: unknown;
+    if (caData) {
+      if ('createHttpClient' in Deno) {
+        httpClient = (Deno as any).createHttpClient({
+          caData,
+        });
+      } else {
+        console.error('debug: cannot have Deno trust the server CA without --unstable');
+      }
+    }
 
     return new KubeConfigRestClient(ctx, httpClient);
   }
@@ -92,7 +113,7 @@ export class KubeConfigRestClient implements RestClient {
       signal: opts.abortSignal,
       client: this.httpClient,
       headers,
-    });
+    } as RequestInit);
 
     if (opts.expectStream) {
       if (!resp.body) return new ReadableStream();
