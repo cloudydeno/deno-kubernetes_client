@@ -64,6 +64,13 @@ export class KubeConfigRestClient implements RestClient {
   static async forKubeConfig(config: KubeConfig): Promise<KubeConfigRestClient> {
     const ctx = config.fetchContext();
 
+    // check early for https://github.com/denoland/deno/issues/7660
+    if (ctx.cluster.server) {
+      const url = new URL(ctx.cluster.server);
+      if (url.hostname.match(/(\]|\.\d+)$/)) throw new Error(
+        `Deno cannot access bare IP addresses over HTTPS. See #7660.`);
+    }
+
     let caData = ctx.cluster["certificate-authority-data"];
     if (!caData && ctx.cluster["certificate-authority"]) {
       caData = await Deno.readTextFile(ctx.cluster["certificate-authority"]);
