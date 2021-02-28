@@ -16,7 +16,7 @@ export class ClientProviderChain {
         const creds = await factory();
         const {kind} = await creds.performRequest({
           method: 'GET',
-          path: '/api',
+          path: '/api?healthcheck',
           expectJson: true,
         }) as { kind?: string };
         if (kind !== 'APIVersions') throw new Error(

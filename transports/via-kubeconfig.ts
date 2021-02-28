@@ -90,7 +90,10 @@ export class KubeConfigRestClient implements RestClient {
     if (opts.querystring) {
       path += `?${opts.querystring}`;
     }
-    console.error(opts.method, path);
+
+    if (path !== '/api?healthcheck') {
+      console.error(opts.method, path);
+    }
 
     const headers: Record<string, string> = {};
 

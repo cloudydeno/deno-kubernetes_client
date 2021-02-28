@@ -1,6 +1,6 @@
 export * from './lib/contract.ts';
 export { KubeConfig, KubeConfigContext } from './lib/kubeconfig.ts';
-export { Reflector } from './lib/reflector.ts';
+export * from './lib/reflector.ts';
 export * from './lib/stream-transformers.ts';
 
 export * from './transports/mod.ts';
