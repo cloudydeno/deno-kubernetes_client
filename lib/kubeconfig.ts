@@ -30,7 +30,7 @@ export class KubeConfig {
       try {
         return await KubeConfig.readFromPath(defaultPath);
       } catch (err) {
-        if (err.name === 'NotFoundError') { // TODO: confirm
+        if (err.name === 'NotFound') {
           return new KubeConfig(mergeKubeConfigs([]));
         }
         throw err;
@@ -138,7 +138,7 @@ export class KubeConfigContext {
         case 'gcp':
           if (config.expiry && config['access-token']) {
             const expiresAt = new Date(config.expiry);
-            if (expiresAt.valueOf() < Date.now()) {
+            if (expiresAt.valueOf() > Date.now()) {
               return `Bearer ${config['access-token']}`;
             } else throw new Error(
               `TODO: GCP auth-provider token expired, use a kubectl command to refresh for now`);
