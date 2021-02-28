@@ -131,6 +131,10 @@ export class KubeConfigContext {
     } else if (this.user.token) {
       return `Bearer ${this.user.token}`;
 
+    } else if (this.user.tokenFile) {
+      const token = await Deno.readTextFile(this.user.tokenFile);
+      return `Bearer ${token.trim()}`;
+
     } else if (this.user['auth-provider']) {
       const {name, config} = this.user['auth-provider'];
       switch (name) {
@@ -234,8 +238,10 @@ export interface ClusterConfig {
 }
 
 export interface UserConfig {
-  // inline auth
+  // static bearer auth
   'token'?: string;
+  'tokenFile'?: string;
+  // static basic auth
   'username'?: string;
   'password'?: string;
 
