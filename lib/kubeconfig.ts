@@ -26,7 +26,7 @@ export class KubeConfig {
 
     if (!path) {
       // default file is ignored if it't not found
-      const defaultPath = join(Deno.env.get("HOME") || "/root", ".kube", "config");
+      const defaultPath = join(Deno.env.get("HOME") || Deno.env.get("USERPROFILE") || "/root", ".kube", "config");
       try {
         return await KubeConfig.readFromPath(defaultPath);
       } catch (err) {
