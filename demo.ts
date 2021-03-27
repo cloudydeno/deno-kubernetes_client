@@ -1,16 +1,14 @@
 import { autoDetectClient, ReadLineTransformer } from './mod.ts';
 const client = await autoDetectClient();
 
-// Build a querystring object
-const querystring = new URLSearchParams();
-querystring.set('limit', '1');
-
-// Grab a normal JSON resource
+// Grab a single resource as JSON
 console.log(await client.performRequest({
   method: 'GET',
   path: `/api/v1/namespaces/default/endpoints`,
   expectJson: true,
-  querystring,
+  querystring: new URLSearchParams({
+    limit: '1',
+  }),
 }));
 
 // Stream multiple JSON objects for a Watch operation
