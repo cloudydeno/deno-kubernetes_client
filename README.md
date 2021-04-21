@@ -20,6 +20,10 @@ please feel free to file a Github Issue.
 Here's a basic request, listing all Pods in the `default` namespace.
 It uses the `autoDetectClient()` entrypoint which returns the first usable client.
 
+Note: This example shows a manual HTTP request.
+To use the Kubernetes APIs more easily, consider also using
+[/x/kubernetes_apis](https://deno.land/x/kubernetes_apis)
+
 ```ts
 import { autoDetectClient } from 'https://deno.land/x/kubernetes_client/mod.ts';
 const kubernetes = await autoDetectClient();
@@ -37,10 +41,10 @@ console.log(podList);
 To get started on local development, `autoDetectClient` will most likely
 decide to call out to your `kubectl`
 installation to make each network call.
-This only requires the `--allow-run` Deno flag.
+This only requires the `--allow-run=kubectl` Deno flag.
 
 To use other clients, more flags are necesary.
-See "Client Implementations" below for more information on other clients.
+See "Client Implementations" below for more information on flags and other HTTP clients.
 
 The `kubectl` client logs the issued commands if `--verbose` is passed to the Deno program.
 
@@ -75,10 +79,10 @@ An error message is shown when no client is usable, something like this:
 
 ```
 Error: Failed to load any possible Kubernetes clients:
-  - InCluster PermissionDenied: read access to "/var/run/secrets/kubernetes.io/serviceaccount/namespace", run again with the --allow-read flag
-  - KubeConfig PermissionDenied: access to environment variables, run again with the --allow-env flag
-  - KubectlProxy PermissionDenied: network access to "localhost:8001", run again with the --allow-net flag
-  - KubectlRaw PermissionDenied: access to run a subprocess, run again with the --allow-run flag
+  - InCluster PermissionDenied: Requires read access to "/var/run/secrets/kubernetes.io/serviceaccount/namespace", run again with the --allow-read flag
+  - KubeConfig PermissionDenied: Requires env access to "KUBECONFIG", run again with the --allow-env flag
+  - KubectlProxy PermissionDenied: Requires net access to "localhost:8001", run again with the --allow-net flag
+  - KubectlRaw PermissionDenied: Requires run access to "kubectl", run again with the --allow-run flag
 ```
 
 Each client has different pros and cons:
@@ -86,7 +90,7 @@ Each client has different pros and cons:
 * `KubectlRawRestClient` invokes `kubectl --raw` for every HTTP call.
     Excellent for development, though a couple APIs are not possible to implement.
 
-    Flags: `--allow-run`
+    Flags: `--allow-run=kubectl` (Deno 1.8 and earlier: `--allow-run`)
 
 * `KubeConfigRestClient` uses Deno's `fetch()` to issue HTTP requests.
     There's a few different functions to configure it:
@@ -94,7 +98,9 @@ Each client has different pros and cons:
     * `forInCluster()` uses a pod's ServiceAccount to automatically authenticate.
         This is what is used when you deploy your script to a cluster.
 
-        Flags: `--allow-read --allow-net` plus either `--unstable` or `--cert=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt`
+        Flags: `--allow-read=/var/run/secrets/kubernetes.io --allow-net=kubernetes.default.svc.cluster.local` plus either `--unstable` or `--cert=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt`
+
+        Lazy flags: `--allow-read --allow-net --unstable`
 
     * `forKubectlProxy()` expects a `kubectl proxy` command to be running and talks directly to it without auth.
 
@@ -113,10 +119,13 @@ Each client has different pros and cons:
 This module is only implementing the HTTP/transport part of talking to Kubernetes.
 You'll likely also want Typescript interfaces around actually working with Kubernetes resources.
 
-API typings are being tracked in a sibling project:
+API typings are available in a sibling project:
 [kubernetes_apis](https://github.com/danopia/deno-kubernetes_apis)
 published to
-[/x/kubernetes_apis](https://deno.land/x/kubernetes_apis)
+[/x/kubernetes_apis](https://deno.land/x/kubernetes_apis).
+
+Of course, for some situations it might make sense to issue specific requests directly
+in which case using this client library alone might make more sense.
 
 ## TODO
 * [x] Support for `kubectl proxy`
