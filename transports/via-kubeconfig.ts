@@ -71,7 +71,7 @@ export class KubeConfigRestClient implements RestClient {
         `Deno cannot access bare IP addresses over HTTPS. See #7660.`);
     }
 
-    let caData = ctx.cluster["certificate-authority-data"];
+    let caData = atob(ctx.cluster["certificate-authority-data"] ?? '');
     if (!caData && ctx.cluster["certificate-authority"]) {
       caData = await Deno.readTextFile(ctx.cluster["certificate-authority"]);
     }

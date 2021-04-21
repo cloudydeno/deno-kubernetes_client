@@ -48,6 +48,9 @@ Check out `lib/contract.ts` to see the type/API contract.
 
 ## Changelog
 
+* `v0.2.2` on `2021-04-21`: Fix for using certificate data stored within kubeconfig.
+    The Base64 encoding was not being respected previously.
+
 * `v0.2.1` on `2021-03-26`: Better Windows support from @jhannes.
     Checks for the `$USERPROFILE` variable as well as `$HOME`.
 
