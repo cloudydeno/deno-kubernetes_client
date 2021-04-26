@@ -65,7 +65,7 @@ export class KubeConfig {
       }}],
       clusters: [{ name: "local-cluster", cluster: {
         'server': baseUrl,
-        'certificate-authority-data': caData,
+        'certificate-authority-data': btoa(caData),
       }}],
       users: [{ name: "service-account", user: {
         'token': tokenData,
