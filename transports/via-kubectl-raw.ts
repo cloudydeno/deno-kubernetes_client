@@ -1,7 +1,10 @@
-import { RestClient, HttpMethods, RequestOptions, JSONValue } from '../lib/contract.ts';
+import {
+  readableStreamFromReader,
+} from "https://deno.land/std@0.95.0/io/streams.ts";
+
+import { RestClient, RequestOptions, JSONValue } from '../lib/contract.ts';
 import {
   JsonParsingTransformer, ReadLineTransformer,
-  readableStreamFromReaderCloser,
 } from "../lib/stream-transformers.ts";
 
 const isVerbose = Deno.args.includes('--verbose');
@@ -225,7 +228,7 @@ function readableStreamFromProcess(p: Deno.Process<{cmd: any, stdout: 'piped'}>,
 
     // Convert Deno.Reader|Deno.Closer into a ReadableStream (like 'fetch' gives)
     let ended = false;
-    const stream = readableStreamFromReaderCloser({
+    const stream = readableStreamFromReader({
       close: () => {
         p.stdout.close();
         // is this the most reliable way??
@@ -259,7 +262,12 @@ function readableStreamFromProcess(p: Deno.Process<{cmd: any, stdout: 'piped'}>,
 
         return num;
       },
-    }, {bufSize: 8*1024}); // watch events tend to be pretty small I guess?
+    }, {
+      chunkSize: 8*1024, // watch events tend to be pretty small I guess?
+      strategy: {
+        highWaterMark: 1, // must be >0 to pre-warm the stream
+      },
+    });
     // 'stream' gets passed to ok() to be returned
   });
 }

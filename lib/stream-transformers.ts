@@ -74,39 +74,6 @@ export class JsonParsingTransformer extends TransformStream<string, JSONObject> 
 }
 
 
-// context: https://github.com/denoland/deno/pull/8378
-
-export function readableStreamFromAsyncIterator<T>(
-  iterator: AsyncIterableIterator<T>,
-  cancel?: ReadableStreamErrorCallback,
-): ReadableStream<T> {
-  return new ReadableStream({
-    cancel,
-    async pull(controller) {
-      const { value, done } = await iterator.next();
-
-      if (done) {
-        controller.close();
-      } else {
-        controller.enqueue(value);
-      }
-    },
-  });
-}
-
-export function readableStreamFromReaderCloser(
-  source: Deno.Reader & Deno.Closer,
-  options?: {
-    bufSize?: number;
-  },
-): ReadableStream<Uint8Array> {
-  return readableStreamFromAsyncIterator(
-    Deno.iter(source, options),
-    () => source.close(),
-  );
-}
-
-
 class WatchEventReader<T,U> {
   objValidator: (val: JSONObject) => T;
   errValidator: (val: JSONObject) => U;
