@@ -224,11 +224,12 @@ function readableStreamFromProcess(p: Deno.Process<{cmd: any, stdout: 'piped'}>,
     const startTime = new Date;
 
     // Convert Deno.Reader|Deno.Closer into a ReadableStream (like 'fetch' gives)
+    let ended = false;
     const stream = readableStreamFromReaderCloser({
       close: () => {
         p.stdout.close();
         // is this the most reliable way??
-        Deno.run({cmd: ['kill', `${p.pid}`]});
+        if (!ended) Deno.run({cmd: ['kill', `${p.pid}`]});
       },
       // Intercept reads to try doing some error handling/mgmt
       read: async buf => {
@@ -237,6 +238,7 @@ function readableStreamFromProcess(p: Deno.Process<{cmd: any, stdout: 'piped'}>,
 
         // if we EOFd, check the process status
         if (num === null) {
+          ended = true;
           const stat = await status;
           // if it took multiple minutes to fail, probably just failed unrelated
           const delayMillis = new Date().valueOf() - startTime.valueOf();
