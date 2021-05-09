@@ -52,6 +52,13 @@ Check out `lib/contract.ts` to see the type/API contract.
 
 ## Changelog
 
+* `v0.2.4` on `2021-05-09`: Clean up Deno-specific code in `stream-transformers.ts`.
+    This also improves compatibility with Deno Deploy.
+    Updated deps to `/std@0.95.0`.
+
+* `v0.2.3` on `2021-04-26`: Full fix for certificate data encodings.
+    Addresses a partial fix in `v0.2.3` which introduced an InCluster regression.
+
 * `v0.2.2` on `2021-04-21`: Fix for using certificate data stored within kubeconfig.
     The Base64 encoding was not being respected previously.
 
