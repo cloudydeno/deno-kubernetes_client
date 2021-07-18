@@ -68,8 +68,15 @@ export class KubeConfigRestClient implements RestClient {
     if (ctx.cluster.server) {
       const url = new URL(ctx.cluster.server);
       if (url.hostname.match(/(\]|\.\d+)$/)) throw new Error(
-        `Deno cannot access bare IP addresses over HTTPS. See #7660.`);
+        `Deno cannot access bare IP addresses over HTTPS. See deno#7660.`);
     }
+
+    // check early for https://github.com/denoland/deno/issues/10516
+    // ref: https://github.com/cloudydeno/deno-kubernetes_client/issues/5
+    if (ctx.user["client-key-data"] || ctx.user["client-key"]
+      || ctx.user["client-certificate-data"]
+      || ctx.user["client-certificate"]) throw new Error(
+        `Deno cannot yet present client certificate (TLS) authentication. See deno#10516.`);
 
     let caData = atob(ctx.cluster["certificate-authority-data"] ?? '');
     if (!caData && ctx.cluster["certificate-authority"]) {
