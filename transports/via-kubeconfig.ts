@@ -2,6 +2,8 @@ import { RestClient, HttpMethods, RequestOptions } from '../lib/contract.ts';
 import { JsonParsingTransformer, ReadLineTransformer } from "../lib/stream-transformers.ts";
 import { KubeConfig, KubeConfigContext } from '../lib/kubeconfig.ts';
 
+const isVerbose = Deno.args.includes('--verbose');
+
 /**
  * A RestClient which uses a KubeConfig to talk directly to a Kubernetes endpoint.
  * Used by code which is running within a Kubernetes pod and would like to
@@ -90,8 +92,8 @@ export class KubeConfigRestClient implements RestClient {
         httpClient = (Deno as any).createHttpClient({
           caData,
         });
-      } else {
-        console.error('debug: cannot have Deno trust the server CA without --unstable');
+      } else if (isVerbose) {
+        console.error('WARN: cannot have Deno trust the server CA without --unstable');
       }
     }
 
@@ -105,7 +107,7 @@ export class KubeConfigRestClient implements RestClient {
       path += `?${opts.querystring}`;
     }
 
-    if (path !== '/api?healthcheck') {
+    if (isVerbose && path !== '/api?healthcheck') {
       console.error(opts.method, path);
     }
 
