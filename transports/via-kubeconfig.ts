@@ -181,7 +181,7 @@ async function wrapWebSocket(ws: WebSocket, signal?: AbortSignal) {
       start(ctlr) {
         ws.onmessage = (evt) => ctlr.enqueue(evt.data);
         resultP.then(() => {
-          console.log('close')
+          console.log('k8s ws closed');
           ctlr.close();
         }, err => {
           ctlr.error(err);
