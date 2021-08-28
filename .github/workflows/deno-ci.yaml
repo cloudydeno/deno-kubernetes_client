@@ -38,7 +38,7 @@ jobs:
         restore-keys: deno-https/v1-
 
     - name: Check mod.ts
-      run: time deno cache --reload mod.ts
+      run: time deno cache mod.ts
 
     - name: Check demo.ts
       run: time deno cache demo.ts
