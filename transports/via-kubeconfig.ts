@@ -57,14 +57,20 @@ export class KubeConfigRestClient implements RestClient {
       }));
   }
 
-  static async readKubeConfig(path?: string): Promise<KubeConfigRestClient> {
+  static async readKubeConfig(
+    path?: string,
+    contextName?: string,
+  ): Promise<KubeConfigRestClient> {
     return KubeConfigRestClient.forKubeConfig(path
       ? await KubeConfig.readFromPath(path)
-      : await KubeConfig.getDefaultConfig());
+      : await KubeConfig.getDefaultConfig(), contextName);
   }
 
-  static async forKubeConfig(config: KubeConfig): Promise<KubeConfigRestClient> {
-    const ctx = config.fetchContext();
+  static async forKubeConfig(
+    config: KubeConfig,
+    contextName?: string,
+  ): Promise<KubeConfigRestClient> {
+    const ctx = config.fetchContext(contextName);
 
     // check early for https://github.com/denoland/deno/issues/7660
     if (ctx.cluster.server) {

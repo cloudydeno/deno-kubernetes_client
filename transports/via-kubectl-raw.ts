@@ -14,10 +14,8 @@ const isVerbose = Deno.args.includes('--verbose');
  * Your existing kubectl is called to do all the actual authentication and network stuff.
  * This is pretty reliable but mot all types of requests can be performed this way.
  *
- * TODO: support using a specific KubeConfig context
- *
  * Deno flags to use this client:
- *   --allow-run
+ *   --allow-run=kubectl
  *
  * Pro: Any valid kubeconfig will be supported automatically :)
  * Con: In particular, these features aren't available:
@@ -30,6 +28,10 @@ const isVerbose = Deno.args.includes('--verbose');
 export class KubectlRawRestClient implements RestClient {
   namespace = undefined; // TODO: read from `kubectl config view --output=json`
 
+  constructor(
+    public readonly contextName?: string,
+  ) {}
+
   async runKubectl(args: string[], opts: {
     abortSignal?: AbortSignal;
     bodyRaw?: Uint8Array;
@@ -40,8 +42,12 @@ export class KubectlRawRestClient implements RestClient {
     const hasReqBody = opts.bodyJson !== undefined || !!opts.bodyRaw || !!opts.bodyStream;
     isVerbose && console.error('$ kubectl', args.join(' '), hasReqBody ? '< input' : '');
 
+    const ctxArgs = this.contextName ? [
+      '--context', this.contextName,
+    ] : [];
+
     const p = Deno.run({
-      cmd: ["kubectl", ...args],
+      cmd: ["kubectl", ...ctxArgs, ...args],
       stdin: hasReqBody ? 'piped' : undefined,
       stdout: "piped",
       stderr: "inherit",

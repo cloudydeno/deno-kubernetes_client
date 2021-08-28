@@ -119,9 +119,14 @@ Each client has different pros and cons:
 
         Flags: `--allow-net=localhost:8001` given that `kubectl proxy` is already running at that URL.
 
-    * `readKubeConfig(path?)` (or `forKubeConfig(config)`) tries using the given config (or `$HOME/.kube/config` if none is given) as closely as possible.
+    * `readKubeConfig(path?, context?)` (or `forKubeConfig(config, context?)`) tries using the given config (or `$HOME/.kube/config` if none is given) as faithfully as possible.
 
-        This requires a lot of flags depending on the config file, and in some cases simply cannot work. For example `https://<ip-address>` server values are not currently supported by Deno. Trial & error works here :)
+        This requires a lot of flags depending on the config file,
+        and in some cases simply cannot work.
+        For example `https://<ip-address>` server values are not currently supported by Deno,
+        and invoking auth plugins such as `gcloud` aren't implemented yet,
+        so any short-lived tokens in the kubeconfig must already be fresh.
+        Trial & error works here :)
 
         Entry-level flags: `--allow-env --allow-net --allow-read=$HOME/.kube`
 
