@@ -1,3 +1,5 @@
+#!/usr/bin/env -S deno run --allow-run=kubectl
+
 import { autoDetectClient, ReadLineTransformer } from './mod.ts';
 const client = await autoDetectClient();
 
