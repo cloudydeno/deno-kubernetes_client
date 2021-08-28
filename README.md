@@ -52,6 +52,10 @@ Check out `lib/contract.ts` to see the type/API contract.
 
 ## Changelog
 
+* `main`: More consistently use `--verbose` flag (#4).
+    Updated deps to `/std@0.105.0`.
+    Now requires Deno v1.11 or later.
+
 * `v0.2.4` on `2021-05-09`: Clean up Deno-specific code in `stream-transformers.ts`.
     This also improves compatibility with Deno Deploy.
     Updated deps to `/std@0.95.0`.
