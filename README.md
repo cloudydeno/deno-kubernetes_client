@@ -1,4 +1,4 @@
-![Deno CI](https://github.com/danopia/deno-kubernetes_client/workflows/Deno%20CI/badge.svg?branch=main)
+![Deno CI](https://github.com/danopia/deno-kubernetes_client/workflows/CI/badge.svg?branch=main)
 
 # `/x/kubernetes_client`
 
