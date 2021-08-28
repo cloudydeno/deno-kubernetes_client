@@ -79,25 +79,35 @@ export class KubeConfigRestClient implements RestClient {
         `Deno cannot access bare IP addresses over HTTPS. See deno#7660.`);
     }
 
-    // check early for https://github.com/denoland/deno/issues/10516
-    // ref: https://github.com/cloudydeno/deno-kubernetes_client/issues/5
-    if (ctx.user["client-key-data"] || ctx.user["client-key"]
-      || ctx.user["client-certificate-data"]
-      || ctx.user["client-certificate"]) throw new Error(
-        `Deno cannot yet present client certificate (TLS) authentication. See deno#10516.`);
+    let userCert = atob(ctx.user["client-certificate-data"] ?? '');
+    if (!userCert && ctx.user["client-certificate"]) {
+      userCert = await Deno.readTextFile(ctx.user["client-certificate"]);
+    }
 
-    let caData = atob(ctx.cluster["certificate-authority-data"] ?? '');
-    if (!caData && ctx.cluster["certificate-authority"]) {
-      caData = await Deno.readTextFile(ctx.cluster["certificate-authority"]);
+    let userKey = atob(ctx.user["client-key-data"] ?? '');
+    if (!userKey && ctx.user["client-key"]) {
+      userKey = await Deno.readTextFile(ctx.user["client-key"]);
+    }
+
+    if ((userKey && !userCert) || (!userKey && userCert)) throw new Error(
+      `Within the KubeConfig, client key and certificate must both be provided if either is provided.`);
+
+    let serverCert = atob(ctx.cluster["certificate-authority-data"] ?? '');
+    if (!serverCert && ctx.cluster["certificate-authority"]) {
+      serverCert = await Deno.readTextFile(ctx.cluster["certificate-authority"]);
     }
 
     // do a little dance to allow running with or without --unstable
     let httpClient: unknown;
-    if (caData) {
+    if (serverCert || userKey) {
       if ('createHttpClient' in Deno) {
         httpClient = (Deno as any).createHttpClient({
-          caData,
+          caData: serverCert,
+          privateKey: userKey,
+          certChain: userCert,
         });
+      } else if (userKey) {
+        console.error('WARN: cannot use certificate-based auth without --unstable');
       } else if (isVerbose) {
         console.error('WARN: cannot have Deno trust the server CA without --unstable');
       }
