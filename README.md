@@ -52,7 +52,9 @@ Check out `lib/contract.ts` to see the type/API contract.
 
 ## Changelog
 
-* `main`: More consistently use `--verbose` flag (#4).
+* `v0.3.0`:
+    Allow TLS authentication, when supported by Deno ([#7](https://github.com/cloudydeno/deno-kubernetes_client/issues/7)).
+    More consistently use `--verbose` flag ([#4](https://github.com/cloudydeno/deno-kubernetes_client/issues/4)).
     Updated deps to `/std@0.105.0`.
     Now requires Deno v1.11 or later.
 
@@ -101,7 +103,7 @@ Each client has different pros and cons:
 * `KubectlRawRestClient` invokes `kubectl --raw` for every HTTP call.
     Excellent for development, though a couple APIs are not possible to implement.
 
-    Flags: `--allow-run=kubectl` (Deno 1.8 and earlier: `--allow-run`)
+    Flags: `--allow-run=kubectl`
 
 * `KubeConfigRestClient` uses Deno's `fetch()` to issue HTTP requests.
     There's a few different functions to configure it:
