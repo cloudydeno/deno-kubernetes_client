@@ -52,7 +52,7 @@ Check out `lib/contract.ts` to see the type/API contract.
 
 ## Changelog
 
-* `v0.3.0`:
+* `v0.3.0` on `2021-08-29`:
     Allow TLS authentication, when supported by Deno ([#7](https://github.com/cloudydeno/deno-kubernetes_client/issues/7)).
     More consistently use `--verbose` flag ([#4](https://github.com/cloudydeno/deno-kubernetes_client/issues/4)).
     Updated deps to `/std@0.105.0`.
