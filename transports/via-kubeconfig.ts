@@ -17,10 +17,12 @@ const isVerbose = Deno.args.includes('--verbose');
  * Deno flags to use this client:
  * Basic KubeConfig: --allow-read=$HOME/.kube --allow-net --allow-env
  * CA cert fix: --unstable --allow-read=$HOME/.kube --allow-net --allow-env
- * In-cluster: --allow-read=/var/run/secrets/kubernetes.io --allow-net --cert=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+ * In-cluster 1: --allow-read=/var/run/secrets/kubernetes.io --allow-net --unstable
+ * In-cluster 2: --allow-read=/var/run/secrets/kubernetes.io --allow-net --cert=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
  *
  * Unstable features:
  * - using the cluster's CA when fetching (otherwise pass --cert to Deno)
+ * - using client auth authentication, if configured
  * - inspecting permissions and prompting for further permissions (TODO)
  *
  * --allow-env is purely to read the $HOME and $KUBECONFIG variables to find your kubeconfig
@@ -31,9 +33,6 @@ const isVerbose = Deno.args.includes('--verbose');
  *
  * Note that Deno (as of 1.4.1) can't fetch HTTPS IP addresses (denoland/deno#7660)
  * so KUBERNETES_SERVER_HOST can't be used at this time, and would need --allow-env anyway.
- *
- * Note that Deno (as of 1.7.5) can't supply client certificates (TODO: file an issue)
- * so certificate based auth is currently not possible.
  */
 
 export class KubeConfigRestClient implements RestClient {
