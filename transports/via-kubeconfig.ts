@@ -120,14 +120,20 @@ export class KubeConfigRestClient implements RestClient {
     const authHeader = await this.ctx.getAuthHeader();
     if (authHeader) {
       headers['Authorization'] = authHeader;
-      if (opts.expectChannel) throw new Error(`Deno WebSockets cannot attach auth headers yet. See deno#9891`);
     }
 
     const fullUrl = new URL(path, this.ctx.cluster.server);
 
+    // Alternate request path for opening WebSockets
     if (opts.expectChannel) {
+      const subprotocols = [...opts.expectChannel];
+      if (authHeader?.startsWith('Bearer ')) {
+        const token = Base64EncodeUrl(authHeader.split(' ')[1]);
+        subprotocols.push(`base64url.bearer.authorization.k8s.io.${token}`);
+      }
+
       fullUrl.protocol = fullUrl.protocol.replace(/^http/, 'ws');
-      const ws = new WebSocket(fullUrl.toString(), opts.expectChannel);
+      const ws = new WebSocket(fullUrl.toString(), subprotocols);
       return await wrapWebSocket(ws, opts.abortSignal);
     }
 
@@ -137,6 +143,7 @@ export class KubeConfigRestClient implements RestClient {
     const contentType = opts.contentType ?? (opts.bodyJson ? 'application/json' : undefined);
     if (contentType) headers['Content-Type'] = contentType;
 
+    // The actual request!
     const resp = await fetch(fullUrl, {
       method: opts.method,
       body: opts.bodyStream ?? opts.bodyRaw ?? JSON.stringify(opts.bodyJson),
@@ -212,4 +219,11 @@ async function wrapWebSocket(ws: WebSocket, signal?: AbortSignal) {
 
   await Promise.race([readyP, resultP]);
   return pair;
+}
+
+function Base64EncodeUrl(str: string) {
+  return btoa(str)
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/\=+$/, '');
 }
