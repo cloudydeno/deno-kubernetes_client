@@ -52,6 +52,10 @@ Check out `lib/contract.ts` to see the type/API contract.
 
 ## Changelog
 
+* `v0.3.1` on `2021-11-27`:
+    Fix cluster certificate authority setup in `KubeConfigRestClient`
+    on [Deno v1.15.0 and later](https://deno.com/blog/v1.15#in-memory-ca-certificates).
+
 * `v0.3.0` on `2021-08-29`:
     Allow TLS authentication, when supported by Deno ([#7](https://github.com/cloudydeno/deno-kubernetes_client/issues/7)).
     More consistently use `--verbose` flag ([#4](https://github.com/cloudydeno/deno-kubernetes_client/issues/4)).

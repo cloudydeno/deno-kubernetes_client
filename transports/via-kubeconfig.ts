@@ -101,6 +101,7 @@ export class KubeConfigRestClient implements RestClient {
     if (serverCert || userKey) {
       if ('createHttpClient' in Deno) {
         httpClient = (Deno as any).createHttpClient({
+          caCerts: serverCert ? [serverCert] : [],
           caData: serverCert,
           privateKey: userKey,
           certChain: userCert,
