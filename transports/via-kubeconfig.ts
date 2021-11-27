@@ -78,12 +78,12 @@ export class KubeConfigRestClient implements RestClient {
         `Deno cannot access bare IP addresses over HTTPS. See deno#7660.`);
     }
 
-    let userCert = atob(ctx.user["client-certificate-data"] ?? '');
+    let userCert = atob(ctx.user["client-certificate-data"] ?? '') || null;
     if (!userCert && ctx.user["client-certificate"]) {
       userCert = await Deno.readTextFile(ctx.user["client-certificate"]);
     }
 
-    let userKey = atob(ctx.user["client-key-data"] ?? '');
+    let userKey = atob(ctx.user["client-key-data"] ?? '') || null;
     if (!userKey && ctx.user["client-key"]) {
       userKey = await Deno.readTextFile(ctx.user["client-key"]);
     }
@@ -91,7 +91,7 @@ export class KubeConfigRestClient implements RestClient {
     if ((userKey && !userCert) || (!userKey && userCert)) throw new Error(
       `Within the KubeConfig, client key and certificate must both be provided if either is provided.`);
 
-    let serverCert = atob(ctx.cluster["certificate-authority-data"] ?? '');
+    let serverCert = atob(ctx.cluster["certificate-authority-data"] ?? '') || null;
     if (!serverCert && ctx.cluster["certificate-authority"]) {
       serverCert = await Deno.readTextFile(ctx.cluster["certificate-authority"]);
     }
