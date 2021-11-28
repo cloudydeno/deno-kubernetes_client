@@ -52,6 +52,10 @@ Check out `lib/contract.ts` to see the type/API contract.
 
 ## Changelog
 
+* `v0.3.2` on `2021-11-28`:
+    Fix another regression on modern Deno, related to client certificates.
+    Or more exactly the lack thereof when running in-cluster.
+
 * `v0.3.1` on `2021-11-27`:
     Fix cluster certificate authority setup in `KubeConfigRestClient`
     on [Deno v1.15.0 and later](https://deno.com/blog/v1.15#in-memory-ca-certificates).
