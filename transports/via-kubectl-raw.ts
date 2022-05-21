@@ -1,6 +1,6 @@
 import {
   readableStreamFromReader,
-} from "https://deno.land/std@0.105.0/io/streams.ts";
+} from "https://deno.land/std@0.140.0/streams/conversion.ts";
 
 import { RestClient, RequestOptions, JSONValue } from '../lib/contract.ts';
 import {
