@@ -52,6 +52,10 @@ Check out `lib/contract.ts` to see the type/API contract.
 
 ## Changelog
 
+* `v0.4.0` on `2022-05-21`:
+    Updated deps to `/std@0.140.0`.
+    Now requires Deno v1.14 or later to pass typecheck.
+
 * `v0.3.2` on `2021-11-28`:
     Fix another regression on modern Deno, related to client certificates.
     Or more exactly the lack thereof when running in-cluster.
