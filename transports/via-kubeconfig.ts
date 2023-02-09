@@ -1,5 +1,6 @@
-import { RestClient, HttpMethods, RequestOptions } from '../lib/contract.ts';
-import { JsonParsingTransformer, ReadLineTransformer } from "../lib/stream-transformers.ts";
+import { TextLineStream } from '../deps.ts';
+import { RestClient, RequestOptions } from '../lib/contract.ts';
+import { JsonParsingTransformer } from '../lib/stream-transformers.ts';
 import { KubeConfig, KubeConfigContext } from '../lib/kubeconfig.ts';
 
 const isVerbose = Deno.args.includes('--verbose');
@@ -102,9 +103,8 @@ export class KubeConfigRestClient implements RestClient {
       if ('createHttpClient' in Deno) {
         httpClient = (Deno as any).createHttpClient({
           caCerts: serverCert ? [serverCert] : [],
-          caData: serverCert,
-          privateKey: userKey,
           certChain: userCert,
+          privateKey: userKey,
         });
       } else if (userKey) {
         console.error('WARN: cannot use certificate-based auth without --unstable');
@@ -154,7 +154,8 @@ export class KubeConfigRestClient implements RestClient {
       if (!resp.body) return new ReadableStream();
       if (opts.expectJson) {
         return resp.body
-          .pipeThrough(new ReadLineTransformer('utf-8'))
+          .pipeThrough(new TextDecoderStream('utf-8'))
+          .pipeThrough(new TextLineStream())
           .pipeThrough(new JsonParsingTransformer());
       } else {
         return resp.body;

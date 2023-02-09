@@ -55,6 +55,7 @@ Check out `lib/contract.ts` to see the type/API contract.
 * Unreleased `v0.5.0`:
     Updated deps to `/std@0.177.0`.
     Run CI on Deno v1.22 thru v1.30.
+    Drop mTLS support for Deno v1.14 and earlier.
 
 * `v0.4.0` on `2022-05-21`:
     Updated deps to `/std@0.140.0`.

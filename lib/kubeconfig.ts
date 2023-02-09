@@ -5,8 +5,7 @@
  * be relative to the file they were originally found in
  */
 
-import { join } from "https://deno.land/std@0.177.0/path/mod.ts";
-import * as YAML from "https://deno.land/std@0.177.0/encoding/yaml.ts";
+import { joinPath, parseYaml } from '../deps.ts';
 
 export class KubeConfig {
   constructor(
@@ -14,7 +13,7 @@ export class KubeConfig {
   ) {}
 
   static async readFromPath(path: string): Promise<KubeConfig> {
-    const data = YAML.parse(await Deno.readTextFile(path));
+    const data = parseYaml(await Deno.readTextFile(path));
     if (isRawKubeConfig(data)) return new KubeConfig(data);
     throw new Error(`KubeConfig's "apiVersion" and "kind" fields weren't set`);
   }
@@ -26,7 +25,7 @@ export class KubeConfig {
 
     if (!path) {
       // default file is ignored if it't not found
-      const defaultPath = join(Deno.env.get("HOME") || Deno.env.get("USERPROFILE") || "/root", ".kube", "config");
+      const defaultPath = joinPath(Deno.env.get("HOME") || Deno.env.get("USERPROFILE") || "/root", ".kube", "config");
       try {
         return await KubeConfig.readFromPath(defaultPath);
       } catch (err) {
@@ -49,9 +48,9 @@ export class KubeConfig {
     secretsPath = '/var/run/secrets/kubernetes.io/serviceaccount',
   }={}) {
     const [namespace, caData, tokenData] = await Promise.all([
-      Deno.readTextFile(join(secretsPath, 'namespace')),
-      Deno.readTextFile(join(secretsPath, 'ca.crt')),
-      Deno.readTextFile(join(secretsPath, 'token')),
+      Deno.readTextFile(joinPath(secretsPath, 'namespace')),
+      Deno.readTextFile(joinPath(secretsPath, 'ca.crt')),
+      Deno.readTextFile(joinPath(secretsPath, 'token')),
     ]);
 
     return new KubeConfig({

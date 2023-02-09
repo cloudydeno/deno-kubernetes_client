@@ -1,9 +1,6 @@
-import { readableStreamFromReader } from "https://deno.land/std@0.177.0/streams/readable_stream_from_reader.ts";
-
+import { readableStreamFromReader, TextLineStream } from '../deps.ts';
 import { RestClient, RequestOptions, JSONValue } from '../lib/contract.ts';
-import {
-  JsonParsingTransformer, ReadLineTransformer,
-} from "../lib/stream-transformers.ts";
+import { JsonParsingTransformer } from '../lib/stream-transformers.ts';
 
 const isVerbose = Deno.args.includes('--verbose');
 
@@ -138,7 +135,8 @@ export class KubectlRawRestClient implements RestClient {
 
       if (opts.expectJson) {
         return stream
-          .pipeThrough(new ReadLineTransformer('utf-8'))
+          .pipeThrough(new TextDecoderStream('utf-8'))
+          .pipeThrough(new TextLineStream())
           .pipeThrough(new JsonParsingTransformer());
       } else {
         return stream;
