@@ -1,11 +1,6 @@
-import {
-  readableStreamFromReader,
-} from "https://deno.land/std@0.95.0/io/streams.ts";
-
+import { readableStreamFromReader, TextLineStream } from '../deps.ts';
 import { RestClient, RequestOptions, JSONValue } from '../lib/contract.ts';
-import {
-  JsonParsingTransformer, ReadLineTransformer,
-} from "../lib/stream-transformers.ts";
+import { JsonParsingTransformer } from '../lib/stream-transformers.ts';
 
 const isVerbose = Deno.args.includes('--verbose');
 
@@ -14,10 +9,8 @@ const isVerbose = Deno.args.includes('--verbose');
  * Your existing kubectl is called to do all the actual authentication and network stuff.
  * This is pretty reliable but mot all types of requests can be performed this way.
  *
- * TODO: support using a specific KubeConfig context
- *
  * Deno flags to use this client:
- *   --allow-run
+ *   --allow-run=kubectl
  *
  * Pro: Any valid kubeconfig will be supported automatically :)
  * Con: In particular, these features aren't available:
@@ -30,6 +23,10 @@ const isVerbose = Deno.args.includes('--verbose');
 export class KubectlRawRestClient implements RestClient {
   namespace = undefined; // TODO: read from `kubectl config view --output=json`
 
+  constructor(
+    public readonly contextName?: string,
+  ) {}
+
   async runKubectl(args: string[], opts: {
     abortSignal?: AbortSignal;
     bodyRaw?: Uint8Array;
@@ -40,8 +37,12 @@ export class KubectlRawRestClient implements RestClient {
     const hasReqBody = opts.bodyJson !== undefined || !!opts.bodyRaw || !!opts.bodyStream;
     isVerbose && console.error('$ kubectl', args.join(' '), hasReqBody ? '< input' : '');
 
+    const ctxArgs = this.contextName ? [
+      '--context', this.contextName,
+    ] : [];
+
     const p = Deno.run({
-      cmd: ["kubectl", ...args],
+      cmd: ["kubectl", ...ctxArgs, ...args],
       stdin: hasReqBody ? 'piped' : undefined,
       stdout: "piped",
       stderr: "inherit",
@@ -136,7 +137,8 @@ export class KubectlRawRestClient implements RestClient {
 
       if (opts.expectJson) {
         return stream
-          .pipeThrough(new ReadLineTransformer('utf-8'))
+          .pipeThrough(new TextDecoderStream('utf-8'))
+          .pipeThrough(new TextLineStream())
           .pipeThrough(new JsonParsingTransformer());
       } else {
         return stream;

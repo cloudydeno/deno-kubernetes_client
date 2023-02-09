@@ -1,4 +1,4 @@
-![Deno CI](https://github.com/danopia/deno-kubernetes_client/workflows/Deno%20CI/badge.svg?branch=main)
+![Deno CI](https://github.com/danopia/deno-kubernetes_client/workflows/CI/badge.svg?branch=main)
 
 # `/x/kubernetes_client`
 
@@ -52,6 +52,30 @@ Check out `lib/contract.ts` to see the type/API contract.
 
 ## Changelog
 
+* Unreleased `v0.5.0`:
+    Updated deps to `/std@0.177.0` and run CI on Deno v1.22 thru v1.30.
+    Now skips interactive permission prompts for InCluster files.
+    Now throws an error when expectStream requests do not succeed.
+    Authenticating with mTLS now requires Deno v1.15 or later.
+
+* `v0.4.0` on `2022-05-21`:
+    Updated deps to `/std@0.140.0`.
+    Now requires Deno v1.14 or later to pass typecheck.
+
+* `v0.3.2` on `2021-11-28`:
+    Fix another regression on modern Deno, related to client certificates.
+    Or more exactly the lack thereof when running in-cluster.
+
+* `v0.3.1` on `2021-11-27`:
+    Fix cluster certificate authority setup in `KubeConfigRestClient`
+    on [Deno v1.15.0 and later](https://deno.com/blog/v1.15#in-memory-ca-certificates).
+
+* `v0.3.0` on `2021-08-29`:
+    Allow TLS authentication, when supported by Deno ([#7](https://github.com/cloudydeno/deno-kubernetes_client/issues/7)).
+    More consistently use `--verbose` flag ([#4](https://github.com/cloudydeno/deno-kubernetes_client/issues/4)).
+    Updated deps to `/std@0.105.0`.
+    Now requires Deno v1.11 or later.
+
 * `v0.2.4` on `2021-05-09`: Clean up Deno-specific code in `stream-transformers.ts`.
     This also improves compatibility with Deno Deploy.
     Updated deps to `/std@0.95.0`.
@@ -97,7 +121,7 @@ Each client has different pros and cons:
 * `KubectlRawRestClient` invokes `kubectl --raw` for every HTTP call.
     Excellent for development, though a couple APIs are not possible to implement.
 
-    Flags: `--allow-run=kubectl` (Deno 1.8 and earlier: `--allow-run`)
+    Flags: `--allow-run=kubectl`
 
 * `KubeConfigRestClient` uses Deno's `fetch()` to issue HTTP requests.
     There's a few different functions to configure it:
@@ -115,9 +139,14 @@ Each client has different pros and cons:
 
         Flags: `--allow-net=localhost:8001` given that `kubectl proxy` is already running at that URL.
 
-    * `readKubeConfig(path?)` (or `forKubeConfig(config)`) tries using the given config (or `$HOME/.kube/config` if none is given) as closely as possible.
+    * `readKubeConfig(path?, context?)` (or `forKubeConfig(config, context?)`) tries using the given config (or `$HOME/.kube/config` if none is given) as faithfully as possible.
 
-        This requires a lot of flags depending on the config file, and in some cases simply cannot work. For example `https://<ip-address>` server values are not currently supported by Deno. Trial & error works here :)
+        This requires a lot of flags depending on the config file,
+        and in some cases simply cannot work.
+        For example `https://<ip-address>` server values are not currently supported by Deno,
+        and invoking auth plugins such as `gcloud` aren't implemented yet,
+        so any short-lived tokens in the kubeconfig must already be fresh.
+        Trial & error works here :)
 
         Entry-level flags: `--allow-env --allow-net --allow-read=$HOME/.kube`
 

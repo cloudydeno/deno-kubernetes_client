@@ -1,8 +1,6 @@
-import { RestClient, HttpMethods, RequestOptions, ChannelStreams } from '../lib/contract.ts';
-import {
-  JsonParsingTransformer, ReadLineTransformer,
-  TaggedStreamTransformer,
-} from "../lib/stream-transformers.ts";
+import { TextLineStream } from '../deps.ts';
+import { RestClient, RequestOptions, JSONValue } from '../lib/contract.ts';
+import { JsonParsingTransformer, TaggedStreamTransformer } from '../lib/stream-transformers.ts';
 import { KubeConfig, KubeConfigContext } from '../lib/kubeconfig.ts';
 
 const isVerbose = Deno.args.includes('--verbose');
@@ -20,10 +18,12 @@ const isVerbose = Deno.args.includes('--verbose');
  * Deno flags to use this client:
  * Basic KubeConfig: --allow-read=$HOME/.kube --allow-net --allow-env
  * CA cert fix: --unstable --allow-read=$HOME/.kube --allow-net --allow-env
- * In-cluster: --allow-read=/var/run/secrets/kubernetes.io --allow-net --cert=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+ * In-cluster 1: --allow-read=/var/run/secrets/kubernetes.io --allow-net --unstable
+ * In-cluster 2: --allow-read=/var/run/secrets/kubernetes.io --allow-net --cert=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
  *
  * Unstable features:
  * - using the cluster's CA when fetching (otherwise pass --cert to Deno)
+ * - using client auth authentication, if configured
  * - inspecting permissions and prompting for further permissions (TODO)
  *
  * --allow-env is purely to read the $HOME and $KUBECONFIG variables to find your kubeconfig
@@ -34,9 +34,6 @@ const isVerbose = Deno.args.includes('--verbose');
  *
  * Note that Deno (as of 1.4.1) can't fetch HTTPS IP addresses (denoland/deno#7660)
  * so KUBERNETES_SERVER_HOST can't be used at this time, and would need --allow-env anyway.
- *
- * Note that Deno (as of 1.7.5) can't supply client certificates (TODO: file an issue)
- * so certificate based auth is currently not possible.
  */
 
 export class KubeConfigRestClient implements RestClient {
@@ -60,14 +57,20 @@ export class KubeConfigRestClient implements RestClient {
       }));
   }
 
-  static async readKubeConfig(path?: string): Promise<KubeConfigRestClient> {
+  static async readKubeConfig(
+    path?: string,
+    contextName?: string,
+  ): Promise<KubeConfigRestClient> {
     return KubeConfigRestClient.forKubeConfig(path
       ? await KubeConfig.readFromPath(path)
-      : await KubeConfig.getDefaultConfig());
+      : await KubeConfig.getDefaultConfig(), contextName);
   }
 
-  static async forKubeConfig(config: KubeConfig): Promise<KubeConfigRestClient> {
-    const ctx = config.fetchContext();
+  static async forKubeConfig(
+    config: KubeConfig,
+    contextName?: string,
+  ): Promise<KubeConfigRestClient> {
+    const ctx = config.fetchContext(contextName);
 
     // check early for https://github.com/denoland/deno/issues/7660
     if (ctx.cluster.server) {
@@ -76,25 +79,35 @@ export class KubeConfigRestClient implements RestClient {
         `Deno cannot access bare IP addresses over HTTPS. See deno#7660.`);
     }
 
-    // check early for https://github.com/denoland/deno/issues/10516
-    // ref: https://github.com/cloudydeno/deno-kubernetes_client/issues/5
-    if (ctx.user["client-key-data"] || ctx.user["client-key"]
-      || ctx.user["client-certificate-data"]
-      || ctx.user["client-certificate"]) throw new Error(
-        `Deno cannot yet present client certificate (TLS) authentication. See deno#10516.`);
+    let userCert = atob(ctx.user["client-certificate-data"] ?? '') || null;
+    if (!userCert && ctx.user["client-certificate"]) {
+      userCert = await Deno.readTextFile(ctx.user["client-certificate"]);
+    }
 
-    let caData = atob(ctx.cluster["certificate-authority-data"] ?? '');
-    if (!caData && ctx.cluster["certificate-authority"]) {
-      caData = await Deno.readTextFile(ctx.cluster["certificate-authority"]);
+    let userKey = atob(ctx.user["client-key-data"] ?? '') || null;
+    if (!userKey && ctx.user["client-key"]) {
+      userKey = await Deno.readTextFile(ctx.user["client-key"]);
+    }
+
+    if ((userKey && !userCert) || (!userKey && userCert)) throw new Error(
+      `Within the KubeConfig, client key and certificate must both be provided if either is provided.`);
+
+    let serverCert = atob(ctx.cluster["certificate-authority-data"] ?? '') || null;
+    if (!serverCert && ctx.cluster["certificate-authority"]) {
+      serverCert = await Deno.readTextFile(ctx.cluster["certificate-authority"]);
     }
 
     // do a little dance to allow running with or without --unstable
     let httpClient: unknown;
-    if (caData) {
+    if (serverCert || userKey) {
       if ('createHttpClient' in Deno) {
         httpClient = (Deno as any).createHttpClient({
-          caData,
+          caCerts: serverCert ? [serverCert] : [],
+          certChain: userCert,
+          privateKey: userKey,
         });
+      } else if (userKey) {
+        console.error('WARN: cannot use certificate-based auth without --unstable');
       } else if (isVerbose) {
         console.error('WARN: cannot have Deno trust the server CA without --unstable');
       }
@@ -153,11 +166,21 @@ export class KubeConfigRestClient implements RestClient {
       headers,
     } as RequestInit);
 
+    // If we got a fixed-length JSON body with an HTTP 4xx/5xx, we can assume it's an error
+    if (!resp.ok && resp.headers.get('content-type') == 'application/json' && resp.headers.get('content-length')) {
+      const bodyJson = await resp.json();
+      const error: HttpError = new Error(`Kubernetes returned HTTP ${resp.status} ${bodyJson.reason}: ${bodyJson.message}`);
+      error.httpCode = resp.status;
+      error.status = bodyJson;
+      throw error;
+    }
+
     if (opts.expectStream) {
       if (!resp.body) return new ReadableStream();
       if (opts.expectJson) {
         return resp.body
-          .pipeThrough(new ReadLineTransformer('utf-8'))
+          .pipeThrough(new TextDecoderStream('utf-8'))
+          .pipeThrough(new TextLineStream())
           .pipeThrough(new JsonParsingTransformer());
       } else {
         return resp.body;
@@ -226,4 +249,9 @@ function Base64EncodeUrl(str: string) {
     .replace(/\+/g, '-')
     .replace(/\//g, '_')
     .replace(/\=+$/, '');
+}
+
+type HttpError = Error & {
+  httpCode?: number;
+  status?: JSONValue;
 }
