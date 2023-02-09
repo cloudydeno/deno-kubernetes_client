@@ -1,5 +1,5 @@
 import { TextLineStream } from '../deps.ts';
-import { RestClient, RequestOptions } from '../lib/contract.ts';
+import { RestClient, RequestOptions, JSONValue } from '../lib/contract.ts';
 import { JsonParsingTransformer } from '../lib/stream-transformers.ts';
 import { KubeConfig, KubeConfigContext } from '../lib/kubeconfig.ts';
 
@@ -150,6 +150,15 @@ export class KubeConfigRestClient implements RestClient {
       headers,
     } as RequestInit);
 
+    // If we got a fixed-length JSON body with an HTTP 4xx/5xx, we can assume it's an error
+    if (!resp.ok && resp.headers.get('content-type') == 'application/json' && resp.headers.get('content-length')) {
+      const bodyJson = await resp.json();
+      const error: HttpError = new Error(`Kubernetes returned HTTP ${resp.status} ${bodyJson.reason}: ${bodyJson.message}`);
+      error.httpCode = resp.status;
+      error.status = bodyJson;
+      throw error;
+    }
+
     if (opts.expectStream) {
       if (!resp.body) return new ReadableStream();
       if (opts.expectJson) {
@@ -168,4 +177,9 @@ export class KubeConfigRestClient implements RestClient {
       return new Uint8Array(await resp.arrayBuffer());
     }
   }
+}
+
+type HttpError = Error & {
+  httpCode?: number;
+  status?: JSONValue;
 }

@@ -53,10 +53,10 @@ Check out `lib/contract.ts` to see the type/API contract.
 ## Changelog
 
 * Unreleased `v0.5.0`:
-    Updated deps to `/std@0.177.0`.
-    Run CI on Deno v1.22 thru v1.30.
-    Authing with mTLS now requires Deno v1.15 or later.
-    Skip interactive permission prompts for InCluster files.
+    Updated deps to `/std@0.177.0` and run CI on Deno v1.22 thru v1.30.
+    Now skips interactive permission prompts for InCluster files.
+    Now throws an error when expectStream requests do not succeed.
+    Authenticating with mTLS now requires Deno v1.15 or later.
 
 * `v0.4.0` on `2022-05-21`:
     Updated deps to `/std@0.140.0`.
