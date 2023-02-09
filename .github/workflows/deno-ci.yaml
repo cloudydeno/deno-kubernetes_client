@@ -13,11 +13,11 @@ jobs:
     strategy:
       matrix:
         deno-version:
-        - v1.14
-        - v1.16
-        - v1.18
-        - v1.20
         - v1.22
+        - v1.24
+        - v1.26
+        - v1.28
+        - v1.30
         - canary
       fail-fast: false # run each branch to completion
 
@@ -40,7 +40,7 @@ jobs:
         restore-keys: deno-https/v1-
 
     - name: Check mod.ts
-      run: time deno cache mod.ts
+      run: time deno check mod.ts
 
     - name: Check demo.ts
-      run: time deno cache demo.ts
+      run: time deno check demo.ts
