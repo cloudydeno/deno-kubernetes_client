@@ -47,6 +47,13 @@ export class KubeConfig {
     baseUrl = 'https://kubernetes.default.svc.cluster.local',
     secretsPath = '/var/run/secrets/kubernetes.io/serviceaccount',
   }={}) {
+    // Avoid interactive prompting for in-cluster secrets.
+    // These are not commonly used from an interactive session.
+    const readPermission = await Deno.permissions.query({name: 'read', path: secretsPath});
+    if (readPermission.state !== 'granted') {
+      throw new Error(`Lacking --allow-read=${secretsPath}`);
+    }
+
     const [namespace, caData, tokenData] = await Promise.all([
       Deno.readTextFile(joinPath(secretsPath, 'namespace')),
       Deno.readTextFile(joinPath(secretsPath, 'ca.crt')),
