@@ -1,7 +1,8 @@
+#!/usr/bin/env -S deno run --unstable --allow-env
 import { autoDetectClient, RestClient } from '../mod.ts';
 const client = await autoDetectClient();
 
-import { merge } from 'https://deno.land/x/stream_observables@v1.0/combiners/merge.ts';
+import { merge } from 'https://deno.land/x/stream_observables@v1.3/combiners/merge.ts';
 
 async function tunnelPodPortforward(client: RestClient, namespace: string, podName: string, opts: {
   ports: number[];

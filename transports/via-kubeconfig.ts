@@ -1,5 +1,5 @@
 import { TextLineStream } from '../deps.ts';
-import { RestClient, RequestOptions, JSONValue } from '../lib/contract.ts';
+import { RestClient, RequestOptions, JSONValue, ChannelStreams } from '../lib/contract.ts';
 import { JsonParsingTransformer, TaggedStreamTransformer } from '../lib/stream-transformers.ts';
 import { KubeConfig, KubeConfigContext } from '../lib/kubeconfig.ts';
 
