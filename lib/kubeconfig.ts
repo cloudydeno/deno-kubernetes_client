@@ -245,8 +245,8 @@ export interface ClusterConfig {
 
 export interface UserConfig {
   // static bearer auth
-  'token'?: string;
-  'tokenFile'?: string;
+  'token'?: string; // string
+  'tokenFile'?: string; // path
   // static basic auth
   'username'?: string;
   'password'?: string;
@@ -258,10 +258,12 @@ export interface UserConfig {
   'client-certificate-data'?: string; // base64
 
   // external auth (--allow-run)
+  /** @deprecated Removed in Kubernetes 1.26, in favor of 'exec */
   'auth-provider'?: {name: string, config: UserAuthProviderConfig};
   'exec'?: UserExecConfig;
 }
 
+/** @deprecated Removed in Kubernetes 1.26, in favor of `UserExecConfig` */
 export interface UserAuthProviderConfig {
   'access-token'?: string;
   'expiry'?: string;
@@ -273,8 +275,13 @@ export interface UserAuthProviderConfig {
 }
 
 export interface UserExecConfig {
-  'apiVersion': "client.authentication.k8s.io/v1alpha1";
+  'apiVersion':
+    | "client.authentication.k8s.io/v1alpha1"
+    | "client.authentication.k8s.io/v1beta1"
+    | "client.authentication.k8s.io/v1";
   'command': string;
   'args'?: string[];
   'env'?: { name: string; value: string; }[];
+  'installHint'?: string;
+  'provideClusterInfo'?: boolean;
 }

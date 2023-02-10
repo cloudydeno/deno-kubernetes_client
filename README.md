@@ -52,7 +52,7 @@ Check out `lib/contract.ts` to see the type/API contract.
 
 ## Changelog
 
-* Unreleased `v0.5.0`:
+* `v0.5.0` on `2023-02-09`:
     Updated deps to `/std@0.177.0` and run CI on Deno v1.22 thru v1.30.
     Now skips interactive permission prompts for InCluster files.
     Now throws an error when expectStream requests do not succeed.
