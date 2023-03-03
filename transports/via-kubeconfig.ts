@@ -139,15 +139,35 @@ export class KubeConfigRestClient implements RestClient {
 
     // Alternate request path for opening WebSockets
     if (opts.expectChannel) {
-      const subprotocols = [...opts.expectChannel];
-      if (authHeader?.startsWith('Bearer ')) {
-        const token = Base64EncodeUrl(authHeader.split(' ')[1]);
-        subprotocols.push(`base64url.bearer.authorization.k8s.io.${token}`);
-      }
+      if (this.ctx.user['client-key-data'] || this.ctx.user['client-key']) throw new Error(
+        `Deno does not support TLS client authentication (mTLS) for WebSockets. `);
+      if (!('WebSocketStream' in globalThis)) throw new Error(
+        `To use exec/attach/portforward APIs, Deno needs to be run with --unstable.`);
 
       fullUrl.protocol = fullUrl.protocol.replace(/^http/, 'ws');
-      const ws = new WebSocket(fullUrl.toString(), subprotocols);
-      return await wrapWebSocket(ws, opts.abortSignal);
+      //@ts-ignore WebSocketStream is not stable yet in Deno
+      const ws: WebSocketStream = new WebSocketStream(fullUrl.toString(), {
+        subprotocols: [...opts.expectChannel],
+        headers,
+        signal: opts.abortSignal,
+      });
+
+      const { readable, writable } = await ws.connection;
+      const writer = writable.getWriter();
+      return {
+        readable: readable.pipeThrough(new TaggedStreamTransformer()),
+        writable: new WritableStream<[number, Uint8Array]>({
+          write([idx, chunk], ctlr) {
+            const buf = new ArrayBuffer(chunk.byteLength + 1);
+            new DataView(buf).setUint8(0, idx);
+            const array = new Uint8Array(buf);
+            array.set(chunk, 1);
+            return writer.write(array);
+          },
+          close: writer.close.bind(writer),
+          abort: writer.abort.bind(writer),
+        }),
+      };
     }
 
     const accept = opts.accept ?? (opts.expectJson ? 'application/json' : undefined);
@@ -195,63 +215,25 @@ export class KubeConfigRestClient implements RestClient {
   }
 }
 
-async function wrapWebSocket(ws: WebSocket, signal?: AbortSignal) {
-  const resultP = new Promise<void>((ok, err) => {
-    ws.onerror = (evt) => err((evt as {error?: Error}).error
-      || new Error((evt as {message?: string}).message
-      || "WebSocket failed somehow!?"));
-    ws.onclose = () => ok();
-  });
-  const readyP = new Promise<void>(ok => {
-    ws.onopen = () => ok();
-  });
-
-  const pair: ChannelStreams = {
-    readable: new ReadableStream<Blob>({
-      start(ctlr) {
-        ws.onmessage = (evt) => ctlr.enqueue(evt.data);
-        resultP.then(() => {
-          console.log('k8s ws closed');
-          ctlr.close();
-        }, err => {
-          ctlr.error(err);
-        });
-      },
-    }).pipeThrough(new TaggedStreamTransformer()),
-    writable: new WritableStream<[number, Uint8Array]>({
-      write([idx, chunk], ctlr) {
-        const buf = new ArrayBuffer(chunk.byteLength + 1);
-        new Uint8Array(buf).set(chunk, 1);
-        new DataView(buf).setUint8(0, idx);
-        ws.send(buf);
-      }
-    }),
-  };
-
-  if (signal) {
-    const abortHandler = () => {
-      isVerbose && console.error('processing ws abort');
-      ws.close();
-    };
-    signal.addEventListener("abort", abortHandler);
-    resultP.finally(() => {
-      isVerbose && console.error('cleaning up ws abort handler');
-      signal?.removeEventListener("abort", abortHandler);
-    });
-  }
-
-  await Promise.race([readyP, resultP]);
-  return pair;
-}
-
-function Base64EncodeUrl(str: string) {
-  return btoa(str)
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/\=+$/, '');
-}
-
 type HttpError = Error & {
   httpCode?: number;
   status?: JSONValue;
+}
+
+// copied from Deno Unstable
+interface WebSocketStream {
+  url: string;
+  connection: Promise<WebSocketConnection>;
+  closed: Promise<WebSocketCloseInfo>;
+  close(closeInfo?: WebSocketCloseInfo): void;
+}
+interface WebSocketCloseInfo {
+  code?: number;
+  reason?: string;
+}
+interface WebSocketConnection {
+  readable: ReadableStream<string | Uint8Array>;
+  writable: WritableStream<string | Uint8Array>;
+  extensions: string;
+  protocol: string;
 }

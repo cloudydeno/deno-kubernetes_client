@@ -72,8 +72,8 @@ export class WatchEventTransformer<T,U> extends TransformStream<JSONObject, Watc
 
 
 /** Parses the first byte off of Blobs for wsstream purposes */
-export class TaggedStreamTransformer extends TransformStream<Blob, [number,Uint8Array]> {
-  constructor(config?: QueuingStrategy<Blob>) {
+export class TaggedStreamTransformer extends TransformStream<Uint8Array, [number,Uint8Array]> {
+  constructor(config?: QueuingStrategy<Uint8Array>) {
     super({
       async transform(raw, controller) {
         const data = new Uint8Array(await raw.arrayBuffer());
