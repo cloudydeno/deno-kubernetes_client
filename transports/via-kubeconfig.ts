@@ -147,7 +147,7 @@ export class KubeConfigRestClient implements RestClient {
       fullUrl.protocol = fullUrl.protocol.replace(/^http/, 'ws');
       //@ts-ignore WebSocketStream is not stable yet in Deno
       const ws: WebSocketStream = new WebSocketStream(fullUrl.toString(), {
-        subprotocols: [...opts.expectChannel],
+        protocols: [...opts.expectChannel],
         headers,
         signal: opts.abortSignal,
       });

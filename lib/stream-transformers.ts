@@ -76,7 +76,7 @@ export class TaggedStreamTransformer extends TransformStream<Uint8Array, [number
   constructor(config?: QueuingStrategy<Uint8Array>) {
     super({
       async transform(raw, controller) {
-        const data = new Uint8Array(await raw.arrayBuffer());
+        const data = new Uint8Array(raw);
         controller.enqueue([data[0], data.slice(1)]);
       },
     }, config);

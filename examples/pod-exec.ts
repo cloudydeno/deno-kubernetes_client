@@ -1,4 +1,4 @@
-#!/usr/bin/env -S deno run --unstable --allow-env
+#!/usr/bin/env -S deno run --allow-env --unstable
 import { autoDetectClient, RestClient } from '../mod.ts';
 const client = await autoDetectClient();
 
@@ -88,6 +88,8 @@ const ports = await tunnelPodExec(client, Deno.args[0], Deno.args[1], {
     uptime
     sleep 1
     uptime
+    sleep 5
+    cat
   `],
   container: Deno.args[2],
   stderr: true,
@@ -98,10 +100,11 @@ const ports = await tunnelPodExec(client, Deno.args[0], Deno.args[1], {
 });
 // console.log({forwards})
 
-// const writer = ports.stdin.getWriter();
-// await writer.write(new TextEncoder().encode('hi!'));
-// await new Promise(ok => setTimeout(ok, 100));
-// doneSig.abort();
+const writer = ports.stdin.getWriter();
+await writer.write(new TextEncoder().encode('hi!'));
+await writer.close();
+await new Promise(ok => setTimeout(ok, 100));
+doneSig.abort();
 
 for await (const x of ports.output) {
   console.log('output', x[0], new TextDecoder().decode(x[1]));
