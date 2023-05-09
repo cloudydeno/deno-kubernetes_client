@@ -253,15 +253,21 @@ export class KubeConfigContext {
         KUBERNETES_EXEC_INFO: JSON.stringify(req),
       },
     });
-    const output = await proc.output();
-    if (!output.success) throw new Error(
-      `Exec plugin ${execConfig.command} exited with code ${output.code}`);
-    const stdout = JSON.parse(new TextDecoder().decode(output.stdout));
-    if (!isExecCredential(stdout) || !stdout.status) throw new Error(
-      `Exec plugin ${execConfig.command} did not output an ExecCredential`);
+    try {
+      const output = await proc.output();
+      if (!output.success) throw new Error(
+        `Exec plugin ${execConfig.command} exited with code ${output.code}`);
+      const stdout = JSON.parse(new TextDecoder().decode(output.stdout));
+      if (!isExecCredential(stdout) || !stdout.status) throw new Error(
+        `Exec plugin ${execConfig.command} did not output an ExecCredential`);
 
-    this.execCred = stdout.status;
-    return stdout.status;
+      this.execCred = stdout.status;
+      return stdout.status;
+    } catch (err) {
+      if (err instanceof Deno.errors.NotFound) throw new Error(execConfig.installHint
+        ?? `Exec plugin ${execConfig.command} not found (${err}). Maybe you need to install it.`);
+      throw err;
+    }
   }
 }
 
