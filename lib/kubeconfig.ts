@@ -235,11 +235,11 @@ export class KubeConfigContext {
       },
     };
     if (execConfig.provideClusterInfo) {
+      const serverTls = await this.getServerTls();
       req.spec.cluster = {
         'config': this.cluster.extensions?.find(x => x.name == ExecAuthExtensionName)?.extension,
         'server': this.cluster.server,
-        // TODO: we are probably expected to load the text if this is given as a file path
-        'certificate-authority-data': this.cluster['certificate-authority-data'],
+        'certificate-authority-data': serverTls ? btoa(serverTls.serverCert) : undefined,
       };
     }
 
