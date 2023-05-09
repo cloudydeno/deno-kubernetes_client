@@ -79,34 +79,18 @@ export class KubeConfigRestClient implements RestClient {
         `Deno cannot access bare IP addresses over HTTPS. See deno#7660.`);
     }
 
-    let userCert = atob(ctx.user["client-certificate-data"] ?? '') || null;
-    if (!userCert && ctx.user["client-certificate"]) {
-      userCert = await Deno.readTextFile(ctx.user["client-certificate"]);
-    }
+    const serverTls = await ctx.getServerTls();
+    const tlsAuth = await ctx.getClientTls();
 
-    let userKey = atob(ctx.user["client-key-data"] ?? '') || null;
-    if (!userKey && ctx.user["client-key"]) {
-      userKey = await Deno.readTextFile(ctx.user["client-key"]);
-    }
-
-    if ((userKey && !userCert) || (!userKey && userCert)) throw new Error(
-      `Within the KubeConfig, client key and certificate must both be provided if either is provided.`);
-
-    let serverCert = atob(ctx.cluster["certificate-authority-data"] ?? '') || null;
-    if (!serverCert && ctx.cluster["certificate-authority"]) {
-      serverCert = await Deno.readTextFile(ctx.cluster["certificate-authority"]);
-    }
-
-    // do a little dance to allow running with or without --unstable
     let httpClient: unknown;
-    if (serverCert || userKey) {
-      if ('createHttpClient' in Deno) {
-        httpClient = (Deno as any).createHttpClient({
-          caCerts: serverCert ? [serverCert] : [],
-          certChain: userCert,
-          privateKey: userKey,
+    if (serverTls || tlsAuth) {
+      if (Deno.createHttpClient) {
+        httpClient = Deno.createHttpClient({
+          caCerts: serverTls ? [serverTls.serverCert] : [],
+          certChain: tlsAuth?.userCert,
+          privateKey: tlsAuth?.userKey,
         });
-      } else if (userKey) {
+      } else if (tlsAuth) {
         console.error('WARN: cannot use certificate-based auth without --unstable');
       } else if (isVerbose) {
         console.error('WARN: cannot have Deno trust the server CA without --unstable');
