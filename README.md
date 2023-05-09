@@ -52,6 +52,11 @@ Check out `lib/contract.ts` to see the type/API contract.
 
 ## Changelog
 
+* `v0.5.1` on `2023-05-09`:
+    Run CI on Deno v1.26 thru v1.32.
+    Now supports 'exec' plugins in kubeconfigs to load temporary credentials.
+    This new feature requires Deno v1.31 or later (or Deno v1.28 with --unstable).
+
 * `v0.5.0` on `2023-02-09`:
     Updated deps to `/std@0.177.0` and run CI on Deno v1.22 thru v1.30.
     Now skips interactive permission prompts for InCluster files.
