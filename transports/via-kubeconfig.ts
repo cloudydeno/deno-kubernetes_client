@@ -32,8 +32,8 @@ const isVerbose = Deno.args.includes('--verbose');
  * This client will prompt you if your config requires extra permissions.
  * Federated auth like AWS IAM or a Google Account are the largest offenders.
  *
- * Note that Deno (as of 1.4.1) can't fetch HTTPS IP addresses (denoland/deno#7660)
- * so KUBERNETES_SERVER_HOST can't be used at this time, and would need --allow-env anyway.
+ * Note that KUBERNETES_SERVER_HOST is not used for historical reasons.
+ * TODO: This variable could be used for an optimization, when available.
  */
 
 export class KubeConfigRestClient implements RestClient {
@@ -72,13 +72,6 @@ export class KubeConfigRestClient implements RestClient {
   ): Promise<KubeConfigRestClient> {
     const ctx = config.fetchContext(contextName);
 
-    // check early for https://github.com/denoland/deno/issues/7660
-    if (ctx.cluster.server) {
-      const url = new URL(ctx.cluster.server);
-      if (url.hostname.match(/(\]|\.\d+)$/)) throw new Error(
-        `Deno cannot access bare IP addresses over HTTPS. See deno#7660.`);
-    }
-
     const serverTls = await ctx.getServerTls();
     const tlsAuth = await ctx.getClientTls();
 
@@ -99,7 +92,6 @@ export class KubeConfigRestClient implements RestClient {
 
     return new KubeConfigRestClient(ctx, httpClient);
   }
-
 
   async performRequest(opts: RequestOptions): Promise<any> {
     let path = opts.path || '/';
