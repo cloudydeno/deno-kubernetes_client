@@ -52,6 +52,10 @@ Check out `lib/contract.ts` to see the type/API contract.
 
 ## Changelog
 
+* `v0.5.2` on `2023-06-12`:
+    Remove IP address restriction. Deno v1.33.4 can now access IP addresses with TLS.
+    This is important when accessing GKE clusters or similar configurations.
+
 * `v0.5.1` on `2023-05-09`:
     Run CI on Deno v1.26 thru v1.32.
     Now supports 'exec' plugins in kubeconfigs to load temporary credentials.
