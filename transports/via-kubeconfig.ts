@@ -38,20 +38,20 @@ const isVerbose = Deno.args.includes('--verbose');
 
 export class KubeConfigRestClient implements RestClient {
   constructor(
-    private ctx: KubeConfigContext,
-    private httpClient: unknown,
+    protected ctx: KubeConfigContext,
+    protected httpClient: unknown,
   ) {
     this.defaultNamespace = ctx.defaultNamespace || 'default';
   }
   defaultNamespace?: string;
 
   static async forInCluster() {
-    return KubeConfigRestClient.forKubeConfig(
+    return this.forKubeConfig(
       await KubeConfig.getInClusterConfig());
   }
 
   static async forKubectlProxy() {
-    return KubeConfigRestClient.forKubeConfig(
+    return this.forKubeConfig(
       KubeConfig.getSimpleUrlConfig({
         baseUrl: 'http://localhost:8001',
       }));
@@ -61,7 +61,7 @@ export class KubeConfigRestClient implements RestClient {
     path?: string,
     contextName?: string,
   ): Promise<KubeConfigRestClient> {
-    return KubeConfigRestClient.forKubeConfig(path
+    return this.forKubeConfig(path
       ? await KubeConfig.readFromPath(path)
       : await KubeConfig.getDefaultConfig(), contextName);
   }
@@ -90,7 +90,7 @@ export class KubeConfigRestClient implements RestClient {
       }
     }
 
-    return new KubeConfigRestClient(ctx, httpClient);
+    return new this(ctx, httpClient);
   }
 
   async performRequest(opts: RequestOptions): Promise<any> {
