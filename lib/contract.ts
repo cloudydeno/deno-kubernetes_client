@@ -21,7 +21,7 @@ export interface RequestOptions {
   bodyStream?: ReadableStream<Uint8Array>;
 
   accept?: string;
-  expectChannel?: string[];
+  expectTunnel?: string[];
   expectStream?: boolean;
   expectJson?: boolean;
 }
@@ -54,7 +54,7 @@ export interface ChannelTunnel {
 }
 
 export interface RestClient {
-  performRequest(opts: RequestOptions & {expectChannel: string[]}): Promise<ChannelTunnel>;
+  performRequest(opts: RequestOptions & {expectTunnel: string[]}): Promise<ChannelTunnel>;
   performRequest(opts: RequestOptions & {expectStream: true; expectJson: true}): Promise<ReadableStream<JSONValue>>;
   performRequest(opts: RequestOptions & {expectStream: true}): Promise<ReadableStream<Uint8Array>>;
   performRequest(opts: RequestOptions & {expectJson: true}): Promise<JSONValue>;
