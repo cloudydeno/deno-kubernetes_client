@@ -26,7 +26,7 @@ export interface RequestOptions {
   expectJson?: boolean;
 }
 
-export interface ChannelTunnel {
+export interface KubernetesTunnel {
   /** Indicates which network protocol is in use.
    * This changes semantics, largely due to Kubernetes tunnel API quirks. */
   readonly transportProtocol: 'SPDY' | 'WebSocket' | 'Opaque';
@@ -43,7 +43,7 @@ export interface ChannelTunnel {
     readable: Treadable;
     writable: Twritable;
   }): Promise<{
-    close(): Promise<void>;
+    // close(): Promise<void>;
     readable: Treadable extends true ? ReadableStream<Uint8Array> : null;
     writable: Twritable extends true ? WritableStream<Uint8Array> : null;
   }>;
@@ -54,7 +54,7 @@ export interface ChannelTunnel {
 }
 
 export interface RestClient {
-  performRequest(opts: RequestOptions & {expectTunnel: string[]}): Promise<ChannelTunnel>;
+  performRequest(opts: RequestOptions & {expectTunnel: string[]}): Promise<KubernetesTunnel>;
   performRequest(opts: RequestOptions & {expectStream: true; expectJson: true}): Promise<ReadableStream<JSONValue>>;
   performRequest(opts: RequestOptions & {expectStream: true}): Promise<ReadableStream<Uint8Array>>;
   performRequest(opts: RequestOptions & {expectJson: true}): Promise<JSONValue>;
