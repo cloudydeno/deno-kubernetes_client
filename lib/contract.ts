@@ -43,7 +43,6 @@ export interface KubernetesTunnel {
     readable: Treadable;
     writable: Twritable;
   }): Promise<{
-    // close(): Promise<void>;
     readable: Treadable extends true ? ReadableStream<Uint8Array> : null;
     writable: Twritable extends true ? WritableStream<Uint8Array> : null;
   }>;
