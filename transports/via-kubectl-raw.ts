@@ -108,6 +108,9 @@ export class KubectlRawRestClient implements RestClient {
     const hasReqBody = opts.bodyJson !== undefined || !!opts.bodyRaw || !!opts.bodyStream;
     isVerbose && console.error(opts.method, path, hasReqBody ? '(w/ body)' : '');
 
+    if (opts.expectTunnel) throw new Error(
+      `Channel-based APIs are not currently implemented by this client.`);
+
     let rawArgs = [command, ...(hasReqBody ? ['-f', '-'] : []), "--raw", path];
 
     if (command === 'patch') {

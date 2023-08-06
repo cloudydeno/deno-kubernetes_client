@@ -103,6 +103,9 @@ export class KubeConfigRestClient implements RestClient {
       console.error(opts.method, path);
     }
 
+    if (opts.expectTunnel) throw new Error(
+      `Channel-based APIs are not currently implemented by this client.`);
+
     const headers: Record<string, string> = {};
 
     if (!this.ctx.cluster.server) throw new Error(`No server URL found in KubeConfig`);
