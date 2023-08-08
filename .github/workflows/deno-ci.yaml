@@ -42,3 +42,6 @@ jobs:
 
     - name: Check demo.ts
       run: time deno check --unstable demo.ts
+
+    - name: Check tunnel-beta/examples/ws-exec-poc.ts
+      run: time deno check --unstable tunnel-beta/examples/ws-exec-poc.ts

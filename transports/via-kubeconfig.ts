@@ -45,12 +45,12 @@ export class KubeConfigRestClient implements RestClient {
   }
   defaultNamespace?: string;
 
-  static async forInCluster() {
+  static async forInCluster(): Promise<RestClient> {
     return this.forKubeConfig(
       await KubeConfig.getInClusterConfig());
   }
 
-  static async forKubectlProxy() {
+  static async forKubectlProxy(): Promise<RestClient> {
     return this.forKubeConfig(
       KubeConfig.getSimpleUrlConfig({
         baseUrl: 'http://localhost:8001',
@@ -60,7 +60,7 @@ export class KubeConfigRestClient implements RestClient {
   static async readKubeConfig(
     path?: string,
     contextName?: string,
-  ): Promise<KubeConfigRestClient> {
+  ): Promise<RestClient> {
     return this.forKubeConfig(path
       ? await KubeConfig.readFromPath(path)
       : await KubeConfig.getDefaultConfig(), contextName);
@@ -69,7 +69,7 @@ export class KubeConfigRestClient implements RestClient {
   static async forKubeConfig(
     config: KubeConfig,
     contextName?: string,
-  ): Promise<KubeConfigRestClient> {
+  ): Promise<RestClient> {
     const ctx = config.fetchContext(contextName);
 
     const serverTls = await ctx.getServerTls();
