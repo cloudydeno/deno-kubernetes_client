@@ -50,6 +50,7 @@ export class WebsocketRestClient extends KubeConfigRestClient {
     const serverWs = new WebSocketStream(url.toString(), {
       headers,
       protocols: opts.expectTunnel,
+      signal: opts.abortSignal,
     });
 
     const serverConn = await serverWs.connection;
