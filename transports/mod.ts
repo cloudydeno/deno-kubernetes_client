@@ -39,13 +39,16 @@ export class ClientProviderChain {
   }
 }
 
-export const DefaultClientProvider
-  = new ClientProviderChain([
-    ['InCluster', () => KubeConfigRestClient.forInCluster()],
-    ['KubeConfig', () => KubeConfigRestClient.readKubeConfig()],
-    ['KubectlProxy', () => KubeConfigRestClient.forKubectlProxy()],
-    ['KubectlRaw', async () => new KubectlRawRestClient()],
+export function makeClientProviderChain(restClientConstructor: typeof KubeConfigRestClient) {
+  return new ClientProviderChain([
+    ['InCluster', () => restClientConstructor.forInCluster()],
+    ['KubeConfig', () => restClientConstructor.readKubeConfig()],
+    ['KubectlProxy', () => restClientConstructor.forKubectlProxy()],
+    ['KubectlRaw', () => Promise.resolve(new KubectlRawRestClient())],
   ]);
+}
+
+export const DefaultClientProvider = makeClientProviderChain(KubeConfigRestClient);
 
 /**
  * Trial-and-error approach for automatically deciding how to talk to Kubernetes.
@@ -53,5 +56,5 @@ export const DefaultClientProvider
  * You can probably be more specific and secure with app-specific Deno.args flags.
  */
 export async function autoDetectClient(): Promise<RestClient> {
-  return DefaultClientProvider.getClient();
+  return await DefaultClientProvider.getClient();
 }
