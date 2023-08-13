@@ -39,21 +39,35 @@ export class ClientProviderChain {
   }
 }
 
-export function makeClientProviderChain(restClientConstructor: typeof KubeConfigRestClient) {
+/** Constructs the typical list of Kubernetes API clients,
+ * using an alternative client for connecting to KubeConfig contexts.
+ * The Kubectl client is unaffected by this. */
+export function makeClientProviderChain(restClientFactory: KubeConfigClientFactory) {
   return new ClientProviderChain([
-    ['InCluster', () => restClientConstructor.forInCluster()],
-    ['KubeConfig', () => restClientConstructor.readKubeConfig()],
-    ['KubectlProxy', () => restClientConstructor.forKubectlProxy()],
+    ['InCluster', () => restClientFactory.forInCluster()],
+    ['KubeConfig', () => restClientFactory.readKubeConfig()],
+    ['KubectlProxy', () => restClientFactory.forKubectlProxy()],
     ['KubectlRaw', () => Promise.resolve(new KubectlRawRestClient())],
   ]);
+}
+
+/** A subset of KubeConfigRestClient's static interface. */
+interface KubeConfigClientFactory {
+  forInCluster(): Promise<RestClient>;
+  forKubectlProxy(): Promise<RestClient>;
+  readKubeConfig(
+    path?: string,
+    contextName?: string,
+  ): Promise<RestClient>;
 }
 
 export const DefaultClientProvider = makeClientProviderChain(KubeConfigRestClient);
 
 /**
- * Trial-and-error approach for automatically deciding how to talk to Kubernetes.
- * You'll still need to set the correct permissions for where you are running.
- * You can probably be more specific and secure with app-specific Deno.args flags.
+ * Automatic trial-and-error approach for deciding how to talk to Kubernetes.
+ * Influenced by Deno's current permissions and Deno may prompt for more permissions.
+ * Will emit a list of problems if no usable clients are found.
+ * You'll likely want to set the correct Deno permissions for your installation.
  */
 export async function autoDetectClient(): Promise<RestClient> {
   return await DefaultClientProvider.getClient();
