@@ -41,48 +41,31 @@ export class KubectlRawRestClient implements RestClient {
       '--context', this.contextName,
     ] : [];
 
-    const p = Deno.run({
-      cmd: ["kubectl", ...ctxArgs, ...args],
-      stdin: hasReqBody ? 'piped' : undefined,
-      stdout: "piped",
-      stderr: "inherit",
+    const kubectl = new Deno.Command('kubectl', {
+      args: [...ctxArgs, ...args],
+      stdin: hasReqBody ? 'piped' : 'null',
+      stdout: 'piped',
+      stderr: 'inherit',
+      signal: opts.abortSignal,
     });
-    const status = p.status();
+    const p = kubectl.spawn();
 
-    if (opts.abortSignal) {
-      const abortHandler = () => {
-        isVerbose && console.error('processing kubectl abort');
-        p.stdout.close();
-      };
-      opts.abortSignal.addEventListener("abort", abortHandler);
-      status.finally(() => {
-        isVerbose && console.error('cleaning up abort handler');
-        opts.abortSignal?.removeEventListener("abort", abortHandler);
-      });
-    }
-
-    if (p.stdin) {
+    if (hasReqBody) {
       if (opts.bodyStream) {
-        const {stdin} = p;
-        opts.bodyStream.pipeTo(new WritableStream({
-          async write(chunk, controller) {
-            await stdin.write(chunk).catch(err => controller.error(err));
-          },
-          close() {
-            stdin.close();
-          },
-        }));
+        await opts.bodyStream.pipeTo(p.stdin);
       } else if (opts.bodyRaw) {
-        await p.stdin.write(opts.bodyRaw);
-        p.stdin.close();
+        const writer = p.stdin.getWriter();
+        await writer.write(opts.bodyRaw);
+        await writer.close();
       } else {
         isVerbose && console.error(JSON.stringify(opts.bodyJson))
-        await p.stdin.write(new TextEncoder().encode(JSON.stringify(opts.bodyJson)));
-        p.stdin.close();
+        const writer = p.stdin.getWriter();
+        await writer.write(new TextEncoder().encode(JSON.stringify(opts.bodyJson)));
+        await writer.close();
       }
     }
 
-    return [p, status] as const;
+    return [p, p.status] as const;
   }
 
   async performRequest(opts: RequestOptions): Promise<any> {
@@ -131,18 +114,13 @@ export class KubectlRawRestClient implements RestClient {
         }
       });
 
-      // with kubectl --raw, we don't really know if the stream is working or not
-      //   until it exits (maybe bad) or prints to stdout (always good)
-      // so we await the stream creation in order to throw obvious errors properly
-      const stream = await readableStreamFromProcess(p, status);
-
       if (opts.expectJson) {
-        return stream
+        return p.stdout
           .pipeThrough(new TextDecoderStream('utf-8'))
           .pipeThrough(new TextLineStream())
           .pipeThrough(new JsonParsingTransformer());
       } else {
-        return stream;
+        return p.stdout;
       }
     }
 
@@ -154,18 +132,17 @@ export class KubectlRawRestClient implements RestClient {
     }
 
     if (opts.expectJson) {
-      const data = new TextDecoder("utf-8").decode(rawOutput);
+      const data = new TextDecoder("utf-8").decode(rawOutput.stdout);
       return JSON.parse(data);
     } else {
-      return rawOutput;
+      return rawOutput.stdout;
     }
   }
 
 }
-// export default KubectlRawRestClient;
 
 // `kubectl patch` doesn't have --raw so we convert the HTTP request into a non-raw `kubectl patch` command
-// The resulting command is quite verbose but works for all main resources
+// The resulting command is quite verbose but works for virtually all resources
 function buildPatchCommand(path: string, contentType?: string) {
   if (path.includes('?')) throw new Error(
     `TODO: KubectlRawRestClient doesn't know how to PATCH with a querystring yet. ${JSON.stringify(path)}`);
@@ -174,7 +151,7 @@ function buildPatchCommand(path: string, contentType?: string) {
   if (patchMode === 'apply') throw new Error(
     `TODO: Server-Side Apply is not yet implemented (and also not enabled in vanilla Kubernetes yet)`);
   if (!['json', 'merge', 'strategic'].includes(patchMode)) throw new Error(
-    `Unrecognized Content-Type ${contentType} for PATCH, unable to translate to 'kubectl patch'`);
+    `Unrecognized Content-Type "${contentType}" for PATCH, unable to translate to 'kubectl patch'`);
 
   const pathParts = path.slice(1).split('/');
 
@@ -214,58 +191,4 @@ function buildPatchCommand(path: string, contentType?: string) {
     `--type`, patchMode,
     `--patch-file`, `/dev/stdin`, // we'll pipe the patch, instead of giving it inline
     ...resourceArgs];
-}
-
-function readableStreamFromProcess(p: Deno.Process<{cmd: any, stdout: 'piped'}>, status: Promise<Deno.ProcessStatus>) {
-  // with kubectl --raw, we don't really know if the stream is working or not
-  //   until it exits (maybe bad) or prints to stdout (always good)
-  // so let's wait to return the stream until the first read returns
-  return new Promise<ReadableStream<Uint8Array>>((ok, err) => {
-    let isFirstRead = true;
-    const startTime = new Date;
-
-    // Convert Deno.Reader|Deno.Closer into a ReadableStream (like 'fetch' gives)
-    let ended = false;
-    const stream = readableStreamFromReader({
-      close: () => {
-        p.stdout.close();
-        // is this the most reliable way??
-        if (!ended) Deno.run({cmd: ['kill', `${p.pid}`]});
-      },
-      // Intercept reads to try doing some error handling/mgmt
-      read: async buf => {
-        // do the read
-        const num = await p.stdout.read(buf);
-
-        // if we EOFd, check the process status
-        if (num === null) {
-          ended = true;
-          const stat = await status;
-          // if it took multiple minutes to fail, probably just failed unrelated
-          const delayMillis = new Date().valueOf() - startTime.valueOf();
-          // TODO: some way of passing an error through the ReadableStream?
-          if (stat.code !== 0 && delayMillis < 3*60*1000) {
-            // might not be too late to fail the call more properly
-            err(new Error(`kubectl stream ended with code ${stat.code}`));
-            return num;
-          }
-          // if exit code was 0, let the EOF happen normally, below
-        }
-
-        // if we got our first data, resolve the original promise
-        if (isFirstRead) {
-          isFirstRead = false;
-          ok(stream);
-        }
-
-        return num;
-      },
-    }, {
-      chunkSize: 8*1024, // watch events tend to be pretty small I guess?
-      strategy: {
-        highWaterMark: 1, // must be >0 to pre-warm the stream
-      },
-    });
-    // 'stream' gets passed to ok() to be returned
-  });
 }
