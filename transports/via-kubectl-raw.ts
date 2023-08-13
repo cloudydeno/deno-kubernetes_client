@@ -166,8 +166,6 @@ export class KubectlRawRestClient implements RestClient {
 
 // `kubectl patch` doesn't have --raw so we convert the HTTP request into a non-raw `kubectl patch` command
 // The resulting command is quite verbose but works for all main resources
-// Unfortunately, /status subresources CANNOT be patched this way: https://github.com/kubernetes/kubectl/issues/564
-// TODO: We could support /scale by building a `kubectl scale` command instead
 function buildPatchCommand(path: string, contentType?: string) {
   if (path.includes('?')) throw new Error(
     `TODO: KubectlRawRestClient doesn't know how to PATCH with a querystring yet. ${JSON.stringify(path)}`);
@@ -203,17 +201,12 @@ function buildPatchCommand(path: string, contentType?: string) {
   ];
 
   // Anything left over? Hopefully a subresource.
+  // Kubectl can target subresources since v1.24
   const leftover = pathParts.length ? `/${pathParts.join('/')}` : '';
-  if (leftover === '/status') throw new Error(
-    `BUG: KubectlRawRestClient cannot patch the '/status' subresource `+
-    `due to <https://github.com/kubernetes/kubectl/issues/564>. `+
-    `Either patch using a different transport, or use a replace operation instead.`);
-  else if (leftover === '/scale') {
-    throw new Error(
-      `TODO: KubectlRawRestClient cannot patch the '/scale' subresource at this time. Please file an issue.`);
-    // return [`scale`,
-    //   `--replicas=${TODO}`, // this is in the request body :(
-    //   ...resourceArgs];
+  if (leftover === '/status') {
+    resourceArgs.unshift('--subresource', 'status');
+  } else if (leftover === '/scale') {
+    resourceArgs.unshift('--subresource', 'scale');
   } else if (leftover) throw new Error(
     `BUG: KubectlRawRestClient found extra text ${JSON.stringify(leftover)} in patch path.`);
 
