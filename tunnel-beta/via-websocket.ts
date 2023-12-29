@@ -53,7 +53,7 @@ export class WebsocketRestClient extends KubeConfigRestClient {
       signal: opts.abortSignal,
     });
 
-    const serverConn = await serverWs.connection;
+    const serverConn = await serverWs.opened;
     return new WebsocketTunnel(serverWs, serverConn);
   }
 }
