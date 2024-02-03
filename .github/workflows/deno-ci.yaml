@@ -23,7 +23,7 @@ jobs:
 
     steps:
     - name: Checkout source
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
 
     - name: Use Deno ${{ matrix.deno-version }}
       uses: denoland/setup-deno@v1
@@ -33,7 +33,7 @@ jobs:
     # "https" cache: code from the Internet
     # External sources won't change much so we use less precise keys
     - name: Cache https://
-      uses: actions/cache@v2
+      uses: actions/cache@v4
       with:
         path: ~/.cache/deno/deps/https
         key: deno-https/v1-${{ github.sha }}
@@ -57,7 +57,7 @@ jobs:
 
     steps:
     - name: Checkout source
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
 
     - name: Use Deno ${{ matrix.deno-version }}
       uses: denoland/setup-deno@v1
@@ -67,7 +67,7 @@ jobs:
     # "https" cache: code from the Internet
     # External sources won't change much so we use less precise keys
     - name: Cache https://
-      uses: actions/cache@v2
+      uses: actions/cache@v4
       with:
         path: ~/.cache/deno/deps/https
         key: deno-https/v1-${{ github.sha }}

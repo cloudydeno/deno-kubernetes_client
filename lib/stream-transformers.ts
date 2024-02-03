@@ -2,7 +2,7 @@ import { JSONObject, WatchEvent } from './contract.ts';
 
 function parseJsonLine(line: string, controller: TransformStreamDefaultController<JSONObject>) {
   if (!line.startsWith('{')) {
-    throw new Error(`JSON line doesn't start with {: `+line.slice(0, 256));
+    throw new Error(`JSON line doesn't start with {: ${line.slice(0, 256)}`);
   }
   controller.enqueue(JSON.parse(line));
 }
