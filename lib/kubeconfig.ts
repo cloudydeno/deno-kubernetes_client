@@ -221,7 +221,7 @@ export class KubeConfigContext {
     const execConfig = this.user['exec'];
     if (!execConfig) throw new Error(`BUG: execConfig disappeared`);
 
-    const isTTY = Deno.isatty(Deno.stdin.rid);
+    const isTTY = Deno.stdin.isTerminal();
     const stdinPolicy = execConfig.interactiveMode ?? 'IfAvailable';
     if (stdinPolicy == 'Always' && !isTTY) {
       throw new Error(`KubeConfig exec plugin wants a TTY, but stdin is not a TTY`);
