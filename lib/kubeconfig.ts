@@ -28,8 +28,8 @@ export class KubeConfig {
       const defaultPath = joinPath(Deno.env.get("HOME") || Deno.env.get("USERPROFILE") || "/root", ".kube", "config");
       try {
         return await KubeConfig.readFromPath(defaultPath);
-      } catch (err) {
-        if (err.name === 'NotFound') {
+      } catch (err: unknown) {
+        if ((err as Error).name === 'NotFound') {
           return new KubeConfig(mergeKubeConfigs([]));
         }
         throw err;
@@ -221,7 +221,7 @@ export class KubeConfigContext {
     const execConfig = this.user['exec'];
     if (!execConfig) throw new Error(`BUG: execConfig disappeared`);
 
-    const isTTY = Deno.isatty(Deno.stdin.rid);
+    const isTTY = Deno.stdin.isTerminal();
     const stdinPolicy = execConfig.interactiveMode ?? 'IfAvailable';
     if (stdinPolicy == 'Always' && !isTTY) {
       throw new Error(`KubeConfig exec plugin wants a TTY, but stdin is not a TTY`);
