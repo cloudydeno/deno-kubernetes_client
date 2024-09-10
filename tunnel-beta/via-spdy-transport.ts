@@ -23,6 +23,7 @@ export class SpdyEnabledRestClient extends KubeConfigRestClient {
       caCerts: serverTls?.serverCert ? [serverTls.serverCert] : [],
       //@ts-ignore-error deno unstable API. These were renamed at some point, we'll pass both.
       certChain: clientTls?.userCert,
+      //@ts-ignore-error deno unstable API. These were renamed at some point, we'll pass both.
       cert: clientTls?.userCert,
       privateKey: clientTls?.userKey,
       key: clientTls?.userKey,

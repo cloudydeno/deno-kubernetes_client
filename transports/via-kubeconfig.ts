@@ -82,6 +82,7 @@ export class KubeConfigRestClient implements RestClient {
           caCerts: serverTls ? [serverTls.serverCert] : [],
           //@ts-ignore-error deno unstable API. These were renamed at some point, we'll pass both.
           certChain: tlsAuth?.userCert,
+          //@ts-ignore-error deno unstable API. These were renamed at some point, we'll pass both.
           cert: tlsAuth?.userCert,
           privateKey: tlsAuth?.userKey,
           key: tlsAuth?.userKey,
