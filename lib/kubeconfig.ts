@@ -28,8 +28,8 @@ export class KubeConfig {
       const defaultPath = joinPath(Deno.env.get("HOME") || Deno.env.get("USERPROFILE") || "/root", ".kube", "config");
       try {
         return await KubeConfig.readFromPath(defaultPath);
-      } catch (err) {
-        if (err.name === 'NotFound') {
+      } catch (err: unknown) {
+        if ((err as Error).name === 'NotFound') {
           return new KubeConfig(mergeKubeConfigs([]));
         }
         throw err;
@@ -193,12 +193,12 @@ export class KubeConfigContext {
             if (expiresAt.valueOf() > Date.now()) {
               return `Bearer ${config['access-token']}`;
             } else throw new Error(
-              `TODO: GCP auth-provider token expired, use a kubectl command to refresh for now`);
+              `GCP "auth-provider" token expired, run a kubectl command to refresh. Or consider updating to "exec"`);
           } else throw new Error(
-            `TODO: GCP auth-provider lacks a cached token, use a kubectl command to refresh for now`);
+            `GCP "auth-provider" lacks a cached token, run a kubectl command to refresh. Or consider updating to "exec"`);
 
         default: throw new Error(
-          `TODO: this kubeconfig's auth-provider (${name}) isn't supported yet`);
+          `This kubeconfig's "auth-provider" (${name}) isn't supported. Consider updating to "exec"`);
       }
 
     } else if (this.user['exec']) {
@@ -221,7 +221,7 @@ export class KubeConfigContext {
     const execConfig = this.user['exec'];
     if (!execConfig) throw new Error(`BUG: execConfig disappeared`);
 
-    const isTTY = Deno.isatty(Deno.stdin.rid);
+    const isTTY = Deno.stdin.isTerminal();
     const stdinPolicy = execConfig.interactiveMode ?? 'IfAvailable';
     if (stdinPolicy == 'Always' && !isTTY) {
       throw new Error(`KubeConfig exec plugin wants a TTY, but stdin is not a TTY`);
