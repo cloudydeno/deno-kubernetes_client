@@ -193,12 +193,12 @@ export class KubeConfigContext {
             if (expiresAt.valueOf() > Date.now()) {
               return `Bearer ${config['access-token']}`;
             } else throw new Error(
-              `TODO: GCP auth-provider token expired, use a kubectl command to refresh for now`);
+              `GCP "auth-provider" token expired, run a kubectl command to refresh. Or consider updating to "exec"`);
           } else throw new Error(
-            `TODO: GCP auth-provider lacks a cached token, use a kubectl command to refresh for now`);
+            `GCP "auth-provider" lacks a cached token, run a kubectl command to refresh. Or consider updating to "exec"`);
 
         default: throw new Error(
-          `TODO: this kubeconfig's auth-provider (${name}) isn't supported yet`);
+          `This kubeconfig's "auth-provider" (${name}) isn't supported. Consider updating to "exec"`);
       }
 
     } else if (this.user['exec']) {

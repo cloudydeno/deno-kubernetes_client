@@ -21,11 +21,8 @@ export class SpdyEnabledRestClient extends KubeConfigRestClient {
       port: url.port ? parseInt(url.port) : 443,
       alpnProtocols: ['http/1.1'],
       caCerts: serverTls?.serverCert ? [serverTls.serverCert] : [],
-      //@ts-ignore-error deno unstable API. These were renamed at some point, we'll pass both.
-      certChain: clientTls?.userCert,
-      //@ts-ignore-error deno unstable API. These were renamed at some point, we'll pass both.
+      //@ts-ignore-error deno unstable API. Not typed?
       cert: clientTls?.userCert,
-      privateKey: clientTls?.userKey,
       key: clientTls?.userKey,
     });
 

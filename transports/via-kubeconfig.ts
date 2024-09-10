@@ -80,11 +80,8 @@ export class KubeConfigRestClient implements RestClient {
       if (Deno.createHttpClient) {
         httpClient = Deno.createHttpClient({
           caCerts: serverTls ? [serverTls.serverCert] : [],
-          //@ts-ignore-error deno unstable API. These were renamed at some point, we'll pass both.
-          certChain: tlsAuth?.userCert,
-          //@ts-ignore-error deno unstable API. These were renamed at some point, we'll pass both.
+          //@ts-ignore-error deno unstable API. Not typed?
           cert: tlsAuth?.userCert,
-          privateKey: tlsAuth?.userKey,
           key: tlsAuth?.userKey,
         });
       } else if (tlsAuth) {
