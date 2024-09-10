@@ -50,7 +50,7 @@ export class KubeConfigRestClient implements RestClient {
       await KubeConfig.getInClusterConfig());
   }
 
-  static async forKubectlProxy(): Promise<RestClient> {
+  static forKubectlProxy(): Promise<RestClient> {
     return this.forKubeConfig(
       KubeConfig.getSimpleUrlConfig({
         baseUrl: 'http://localhost:8001',
