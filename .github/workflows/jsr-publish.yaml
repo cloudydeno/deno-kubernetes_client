@@ -15,8 +15,20 @@ jobs:
       id-token: write
 
     steps:
-      - uses: denoland/setup-deno@v1
+    - uses: denoland/setup-deno@v1
 
-      - uses: actions/checkout@v4
+    - uses: actions/checkout@v4
 
-      - run: deno publish
+    - name: Check publish rules
+      run: |
+        mv deps.ts deps_https.ts
+        mv deps_jsr.ts deps.ts
+        undo () {
+          ARG=$?
+          mv deps.ts deps_jsr.ts
+          mv deps_https.ts deps.ts
+          exit $ARG
+        }
+        trap undo EXIT
+
+        deno publish --allow-dirty
