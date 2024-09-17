@@ -4,7 +4,7 @@ on:
     branches:
       - main
     paths:
-      - src/jsr.json
+      - jsr.json
 
 jobs:
   publish:
@@ -20,4 +20,3 @@ jobs:
       - uses: actions/checkout@v4
 
       - run: deno publish
-        working-directory: src
