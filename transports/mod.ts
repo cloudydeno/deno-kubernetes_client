@@ -42,7 +42,7 @@ export class ClientProviderChain {
 /** Constructs the typical list of Kubernetes API clients,
  * using an alternative client for connecting to KubeConfig contexts.
  * The Kubectl client is unaffected by this. */
-export function makeClientProviderChain(restClientFactory: KubeConfigClientFactory) {
+export function makeClientProviderChain(restClientFactory: KubeConfigClientFactory): ClientProviderChain {
   return new ClientProviderChain([
     ['InCluster', () => restClientFactory.forInCluster()],
     ['KubeConfig', () => restClientFactory.readKubeConfig()],
@@ -61,7 +61,7 @@ interface KubeConfigClientFactory {
   ): Promise<RestClient>;
 }
 
-export const DefaultClientProvider = makeClientProviderChain(KubeConfigRestClient);
+export const DefaultClientProvider: ClientProviderChain = makeClientProviderChain(KubeConfigRestClient);
 
 /**
  * Automatic trial-and-error approach for deciding how to talk to Kubernetes.

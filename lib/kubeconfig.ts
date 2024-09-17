@@ -46,7 +46,7 @@ export class KubeConfig {
     // Using this baseUrl
     baseUrl = 'https://kubernetes.default.svc.cluster.local',
     secretsPath = '/var/run/secrets/kubernetes.io/serviceaccount',
-  }={}) {
+  }={}): Promise<KubeConfig> {
     // Avoid interactive prompting for in-cluster secrets.
     // These are not commonly used from an interactive session.
     const readPermission = await Deno.permissions.query({name: 'read', path: secretsPath});
@@ -81,7 +81,7 @@ export class KubeConfig {
 
   static getSimpleUrlConfig({
     baseUrl = 'http://localhost:8080',
-  }={}) {
+  }={}): KubeConfig {
     return new KubeConfig({
       'apiVersion': "v1",
       'kind': "Config",
@@ -95,18 +95,29 @@ export class KubeConfig {
     });
   }
 
-  getContext(name?: string) {
+  getContext(name?: string): {
+    name: string;
+    context: ContextConfig;
+  } | null {
     return name && this.data.contexts?.find(x => x.name === name) || null;
   }
-  getCluster(name?: string) {
+
+  getCluster(name?: string): {
+    name: string;
+    cluster: ClusterConfig;
+  } | null {
     return name && this.data.clusters?.find(x => x.name === name) || null;
   }
-  getUser(name?: string) {
+
+  getUser(name?: string): {
+    name: string;
+    user: UserConfig;
+  } | null {
     return name && this.data.users?.find(x => x.name === name) || null;
   }
 
   // client-go is really forgiving about incomplete configs, so let's act similar
-  fetchContext(contextName?: string) {
+  fetchContext(contextName?: string): KubeConfigContext {
     const current = this.getContext(contextName ?? this.data["current-context"]);
     const cluster = this.getCluster(current?.context?.cluster);
     const user = this.getUser(current?.context?.user);
@@ -126,11 +137,13 @@ export class KubeConfigContext {
   ) {}
   private execCred: ExecCredentialStatus | null = null;
 
-  get defaultNamespace() {
+  get defaultNamespace(): string | null {
     return this.context.namespace ?? null;
   }
 
-  async getServerTls() {
+  async getServerTls(): Promise<{
+    serverCert: string;
+  } | null> {
     let serverCert = atob(this.cluster["certificate-authority-data"] ?? '') || null;
     if (!serverCert && this.cluster["certificate-authority"]) {
       serverCert = await Deno.readTextFile(this.cluster["certificate-authority"]);
@@ -142,7 +155,10 @@ export class KubeConfigContext {
     return null;
   }
 
-  async getClientTls() {
+  async getClientTls(): Promise<{
+    userKey: string;
+    userCert: string;
+  } | null> {
     let userCert = atob(this.user["client-certificate-data"] ?? '') || null;
     if (!userCert && this.user["client-certificate"]) {
       userCert = await Deno.readTextFile(this.user["client-certificate"]);

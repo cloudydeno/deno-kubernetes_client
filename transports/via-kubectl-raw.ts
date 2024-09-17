@@ -33,7 +33,10 @@ export class KubectlRawRestClient implements RestClient {
     bodyJson?: JSONValue;
     bodyStream?: ReadableStream<Uint8Array>;
     bodyPassthru?: boolean;
-  }) {
+  }): Promise<[
+    Deno.ChildProcess,
+    Promise<Deno.CommandStatus>,
+  ]> {
 
     const hasReqBody = opts.bodyJson !== undefined || !!opts.bodyRaw || !!opts.bodyStream;
     isVerbose && console.error('$ kubectl', args.join(' '), hasReqBody ? '< input' : '');
@@ -65,10 +68,15 @@ export class KubectlRawRestClient implements RestClient {
       }
     }
 
-    return [p, p.status] as const;
+    return [p, p.status];
   }
 
-  async performRequest(opts: RequestOptions): Promise<any> {
+  performRequest(opts: RequestOptions & {expectTunnel: string[]}): Promise<KubernetesTunnel>;
+  performRequest(opts: RequestOptions & {expectStream: true; expectJson: true}): Promise<ReadableStream<JSONValue>>;
+  performRequest(opts: RequestOptions & {expectStream: true}): Promise<ReadableStream<Uint8Array>>;
+  performRequest(opts: RequestOptions & {expectJson: true}): Promise<JSONValue>;
+  performRequest(opts: RequestOptions): Promise<Uint8Array>;
+  async performRequest(opts: RequestOptions): Promise<unknown> {
     const command = {
       GET: 'get',
       POST: 'create',
