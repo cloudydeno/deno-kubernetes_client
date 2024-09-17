@@ -1,7 +1,7 @@
 import { map } from "https://deno.land/x/stream_observables@v1.3/transforms/map.ts";
 import { EOF, external } from "https://deno.land/x/stream_observables@v1.3/sources/external.ts";
 
-import { KubernetesTunnel, RequestOptions } from "../lib/contract.ts";
+import { JSONValue, KubernetesTunnel, RequestOptions } from "../lib/contract.ts";
 import { KubeConfigRestClient } from "../transports/via-kubeconfig.ts";
 
 /**
@@ -28,7 +28,12 @@ import { KubeConfigRestClient } from "../transports/via-kubeconfig.ts";
  *   Upstream work: https://github.com/kubernetes/kubernetes/pull/119157
  */
 export class WebsocketRestClient extends KubeConfigRestClient {
-  async performRequest<Tproto extends string>(opts: RequestOptions & {expectTunnel?: Tproto[]}) {
+  performRequest(opts: RequestOptions & {expectTunnel: string[]}): Promise<KubernetesTunnel>;
+  performRequest(opts: RequestOptions & {expectStream: true; expectJson: true}): Promise<ReadableStream<JSONValue>>;
+  performRequest(opts: RequestOptions & {expectStream: true}): Promise<ReadableStream<Uint8Array>>;
+  performRequest(opts: RequestOptions & {expectJson: true}): Promise<JSONValue>;
+  performRequest(opts: RequestOptions): Promise<Uint8Array>;
+  async performRequest<Tproto extends string>(opts: RequestOptions & {expectTunnel?: Tproto[]}): Promise<unknown> {
     const requestedProtocols = opts.expectTunnel;
     if (!requestedProtocols) {
       return super.performRequest(opts);
@@ -95,7 +100,7 @@ export class WebsocketTunnel implements KubernetesTunnel {
         }
       });
   }
-  readonly transportProtocol = "WebSocket";
+  readonly transportProtocol: "WebSocket" = "WebSocket";
   readonly subProtocol: string;
   readonly done: Promise<void>;
 
@@ -107,7 +112,10 @@ export class WebsocketTunnel implements KubernetesTunnel {
     streamIndex?: number | undefined;
     readable: Treadable;
     writable: Twritable;
-  }) {
+  }): Promise<{
+    writable: Twritable extends true ? WritableStream<Uint8Array> : null;
+    readable: Treadable extends true ? ReadableStream<Uint8Array> : null;
+  }> {
     const { streamIndex } = opts;
     if (typeof streamIndex !== 'number') {
       throw new Error("Cannot get a WebSocket channel without a streamIndex.");
@@ -134,7 +142,7 @@ export class WebsocketTunnel implements KubernetesTunnel {
     return Promise.resolve();
   }
 
-  stop() {
+  stop(): Promise<void> {
     this.wss.close();
     return Promise.resolve();
   }

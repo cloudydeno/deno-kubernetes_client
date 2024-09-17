@@ -1,0 +1,18 @@
+{
+  "name": "@cloudydeno/kubernetes-client",
+  "version": "0.7.2",
+  "exports": {
+    "./lib/contract.ts": "./lib/contract.ts",
+    "./lib/kubeconfig.ts": "./lib/kubeconfig.ts",
+    "./lib/reflector.ts": "./lib/reflector.ts",
+    "./lib/stream-transformers.ts": "./lib/stream-transformers.ts",
+    "./transports/mod.ts": "./transports/mod.ts",
+    ".": "./mod.ts"
+  },
+  "publish": {
+    "exclude": [
+      "deps_https.ts",
+      ".github"
+    ]
+  }
+}

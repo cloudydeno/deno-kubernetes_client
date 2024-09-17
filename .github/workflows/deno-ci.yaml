@@ -38,10 +38,37 @@ jobs:
         restore-keys: deno-https/v1-
 
     - name: Check mod.ts
-      run: time deno check --unstable mod.ts
+      run: time deno check --unstable-http mod.ts
 
     - name: Check demo.ts
-      run: time deno check --unstable demo.ts
+      run: time deno check demo.ts
 
     - name: Check tunnel-beta/examples/ws-exec-poc.ts
-      run: time deno check --unstable tunnel-beta/examples/ws-exec-poc.ts
+      run: time deno check --unstable-net tunnel-beta/examples/ws-exec-poc.ts
+
+  check-publish:
+    runs-on: ubuntu-latest
+    name: Check JSR Publish
+
+    steps:
+    - name: Checkout source
+      uses: actions/checkout@v4
+
+    - name: Use Deno v1
+      uses: denoland/setup-deno@v1
+      with:
+        deno-version: v1
+
+    - name: Check publish rules
+      run: |
+        mv deps.ts deps_https.ts
+        mv deps_jsr.ts deps.ts
+        undo () {
+          ARG=$?
+          mv deps.ts deps_jsr.ts
+          mv deps_https.ts deps.ts
+          exit $ARG
+        }
+        trap undo EXIT
+
+        deno publish --dry-run --allow-dirty

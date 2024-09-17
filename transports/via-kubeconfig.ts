@@ -1,5 +1,5 @@
 import { TextLineStream } from '../deps.ts';
-import { RestClient, RequestOptions, JSONValue } from '../lib/contract.ts';
+import { RestClient, RequestOptions, JSONValue, KubernetesTunnel } from '../lib/contract.ts';
 import { JsonParsingTransformer } from '../lib/stream-transformers.ts';
 import { KubeConfig, KubeConfigContext } from '../lib/kubeconfig.ts';
 
@@ -94,7 +94,12 @@ export class KubeConfigRestClient implements RestClient {
     return new this(ctx, httpClient);
   }
 
-  async performRequest(opts: RequestOptions): Promise<any> {
+  performRequest(opts: RequestOptions & {expectTunnel: string[]}): Promise<KubernetesTunnel>;
+  performRequest(opts: RequestOptions & {expectStream: true; expectJson: true}): Promise<ReadableStream<JSONValue>>;
+  performRequest(opts: RequestOptions & {expectStream: true}): Promise<ReadableStream<Uint8Array>>;
+  performRequest(opts: RequestOptions & {expectJson: true}): Promise<JSONValue>;
+  performRequest(opts: RequestOptions): Promise<Uint8Array>;
+  async performRequest(opts: RequestOptions): Promise<unknown> {
     let path = opts.path || '/';
     if (opts.querystring) {
       path += `?${opts.querystring}`;

@@ -5,7 +5,12 @@ import { KubeConfigRestClient } from "../transports/via-kubeconfig.ts";
 
 export class SpdyEnabledRestClient extends KubeConfigRestClient {
 
-  async performRequest(opts: RequestOptions) {
+  performRequest(opts: RequestOptions & {expectTunnel: string[]}): Promise<KubernetesTunnel>;
+  performRequest(opts: RequestOptions & {expectStream: true; expectJson: true}): Promise<ReadableStream<JSONValue>>;
+  performRequest(opts: RequestOptions & {expectStream: true}): Promise<ReadableStream<Uint8Array>>;
+  performRequest(opts: RequestOptions & {expectJson: true}): Promise<JSONValue>;
+  performRequest(opts: RequestOptions): Promise<Uint8Array>;
+  async performRequest(opts: RequestOptions): Promise<unknown> {
     if (!opts.expectTunnel) {
       return super.performRequest(opts);
     }
@@ -46,14 +51,18 @@ export class SpdyTunnel implements KubernetesTunnel {
     public readonly subProtocol: string,
   ) {
   }
-  readonly transportProtocol = "SPDY";
+  readonly transportProtocol: "SPDY" = "SPDY";
 
   async getChannel<Treadable extends boolean, Twritable extends boolean>(opts: {
     spdyHeaders?: Record<string, string | number> | undefined;
     streamIndex?: number | undefined;
     readable: Treadable;
     writable: Twritable;
-  }) {
+  }): Promise<{
+    close: () => void;
+    writable: Twritable extends true ? WritableStream<Uint8Array> : null;
+    readable: Treadable extends true ? ReadableStream<Uint8Array> : null;
+  }> {
     const { spdyHeaders } = opts;
     if (!spdyHeaders) {
       throw new Error("Cannot get a SPDY channel without spdyHeaders.");
