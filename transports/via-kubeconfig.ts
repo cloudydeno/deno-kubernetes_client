@@ -17,8 +17,8 @@ const isVerbose = Deno.args.includes('--verbose');
  *
  * Deno flags to use this client:
  * Basic KubeConfig: --allow-read=$HOME/.kube --allow-net --allow-env
- * CA cert fix: --unstable --allow-read=$HOME/.kube --allow-net --allow-env
- * In-cluster 1: --allow-read=/var/run/secrets/kubernetes.io --allow-net --unstable
+ * CA cert fix: --unstable-http --allow-read=$HOME/.kube --allow-net --allow-env
+ * In-cluster 1: --allow-read=/var/run/secrets/kubernetes.io --allow-net --unstable-http
  * In-cluster 2: --allow-read=/var/run/secrets/kubernetes.io --allow-net --cert=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
  *
  * Unstable features:
