@@ -9,6 +9,8 @@ import { KubeConfigRestClient } from "../transports/via-kubeconfig.ts";
  * WebSockets have various limits within the Kubernetes and Deno ecosystem,
  * but they work quite well in several situations and have good backpressure support.
  *
+ * * Run Deno with `--unstable-net` to enable the required WebSocketStream API.
+ *
  * * For most clusters, you'll need to have Deno trust the cluster CA.
  *   Otherwise you'll get an `UnknownIssuer` error.
  *   In-cluster, you just need to pass `--cert /var/run/secrets/kubernetes.io/serviceaccount/ca.crt`
@@ -22,6 +24,7 @@ import { KubeConfigRestClient } from "../transports/via-kubeconfig.ts";
  *   (TODO: find or create Kubernetes ticket to track this)
  *
  * * stdin restricted for exec/attach due to lack of EOF signal.
+ *   Addressed in Kubernetes v1.29 via new `v5.channel.k8s.io` protocol.
  *   Upstream work: https://github.com/kubernetes/kubernetes/pull/119157
  */
 export class WebsocketRestClient extends KubeConfigRestClient {

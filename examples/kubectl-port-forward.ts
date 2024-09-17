@@ -1,4 +1,4 @@
-#!/usr/bin/env -S deno run --allow-run=kubectl
+#!/usr/bin/env -S deno run --allow-run=kubectl --no-prompt
 
 // This libary does not implement Kubernetes port-forwarding.
 // If you would like to serve ports on localhost that proxy to a pod,
@@ -49,8 +49,7 @@ status.then(status => {
 });
 
 // Copy output lines (port-forward progress) to stderr
-const stream = process.stdout.readable
-for await (const line of stream
+for await (const line of process.stdout
     .pipeThrough(new TextDecoderStream())
     .pipeThrough(new TextLineStream())) {
   console.error('kubectl says:', line);

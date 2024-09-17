@@ -1,4 +1,4 @@
-import { readableStreamFromReader, TextLineStream } from '../deps.ts';
+import { TextLineStream } from '../deps.ts';
 import { RestClient, RequestOptions, JSONValue, KubernetesTunnel } from '../lib/contract.ts';
 import { JsonParsingTransformer } from '../lib/stream-transformers.ts';
 

@@ -1,4 +1,4 @@
-#!/usr/bin/env -S deno run --unstable --allow-env --allow-read --allow-net
+#!/usr/bin/env -S deno run --unstable-net --allow-env --allow-read --allow-net --cert=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
 
 import { WebsocketRestClient } from "../via-websocket.ts";
 
