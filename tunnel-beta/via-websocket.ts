@@ -28,12 +28,12 @@ import { KubeConfigRestClient } from "../transports/via-kubeconfig.ts";
  *   Upstream work: https://github.com/kubernetes/kubernetes/pull/119157
  */
 export class WebsocketRestClient extends KubeConfigRestClient {
-  performRequest(opts: RequestOptions & {expectTunnel: string[]}): Promise<KubernetesTunnel>;
-  performRequest(opts: RequestOptions & {expectStream: true; expectJson: true}): Promise<ReadableStream<JSONValue>>;
-  performRequest(opts: RequestOptions & {expectStream: true}): Promise<ReadableStream<Uint8Array>>;
-  performRequest(opts: RequestOptions & {expectJson: true}): Promise<JSONValue>;
-  performRequest(opts: RequestOptions): Promise<Uint8Array>;
-  async performRequest<Tproto extends string>(opts: RequestOptions & {expectTunnel?: Tproto[]}): Promise<unknown> {
+  override performRequest(opts: RequestOptions & {expectTunnel: string[]}): Promise<KubernetesTunnel>;
+  override performRequest(opts: RequestOptions & {expectStream: true; expectJson: true}): Promise<ReadableStream<JSONValue>>;
+  override performRequest(opts: RequestOptions & {expectStream: true}): Promise<ReadableStream<Uint8Array>>;
+  override performRequest(opts: RequestOptions & {expectJson: true}): Promise<JSONValue>;
+  override performRequest(opts: RequestOptions): Promise<Uint8Array>;
+  override async performRequest<Tproto extends string>(opts: RequestOptions & {expectTunnel?: Tproto[]}): Promise<unknown> {
     const requestedProtocols = opts.expectTunnel;
     if (!requestedProtocols) {
       return super.performRequest(opts);
